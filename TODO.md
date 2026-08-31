@@ -104,25 +104,6 @@ Services carries no sparkline — measured, it does.)_
 
 
 
-- [ ] **⚠️ SCHEDULED TO BE WRONG IN JANUARY 2027 — 15 hardcoded activity-window
-  labels, and RUNBOOK §1 step 4 mentions none of them.** Audit F4, 2026-08-28.
-  - `FIRE_YEARS` / `PERMIT_YEARS` / `PERMIT_YEARS_RECENT` are restated as
-    literals across 15 user-facing sites in `web/index.html` (`DEV_WINDOW_LABEL`
-    alone feeds 5 render sites). **All correct today** — only because the
-    project is younger than one year-roll.
-  - Step 4 bumps the pins and re-runs the deflator, and says the drift guard
-    means a stale pin "can't be missed silently". **True of the pin, false of
-    all 15 strings.**
-  - ⚠️ **This is the `(2024 n/a)` defect (S122) at 15×**, with the same tell:
-    correctly-derived copy sits beside it (the vintage footer reads
-    `status.json`).
-  - **Not a one-line fix:** `status.json` carries no activity window, so the
-    browser cannot derive these. Closing it means `generate_status.py`
-    publishing the three windows — an **output-schema change**, propose-first.
-    ⚠️ **Do not ship the cheap partial alone** (a RUNBOOK line + a test pinning
-    label against pin) without deciding: a half-fix that makes step 4 *look*
-    complete is its own hazard.
-
 - [ ] **OUTREACH TRACKER — five data issues found, ZERO sent. Every one is
   Peter's call.** ⚠️ **`docs/DATA_ISSUES.md` "Status at a glance" is
   AUTHORITATIVE** — this is a one-line mirror so the count is visible from the
@@ -263,15 +244,15 @@ Services carries no sparkline — measured, it does.)_
       the per-hood cost and why apportioning one half is worse than the error it
       removes; locked in `DECISIONS.md` the same day. **Nothing is open here —
       do not reopen it as a code change.**
-  - ⚠️ **LATENT — `other` is the unmatched bucket, and `NONRES_CATEGORIES`
-    counts it as non-residential.** **No zone code maps to `other` explicitly**;
-    it exists only as `DEFAULT_CATEGORY`. So `frac_nonres` = com+ind+mix+dc+*"we
-    could not classify it"*, which contradicts `DEFAULT_CATEGORY`'s own comment
-    (*"does NOT claim it as residential or any specific non-residential use"*).
-    Inert today because nothing is unmatched, and `frac_nonres` is not served —
-    but `_categorize` only **warns**, so the next zoning-bylaw code addition
-    turns unclassified land into "non-residential" with a log line and no
-    failure. ⚠️ **Decide before the next bylaw update**, not after.
+  - ✅ **CLOSED 2026-08-31 — the `other`-in-`frac_nonres` contradiction is gone,
+    resolved by DELETING the column.** Nothing consumed `frac_nonres` (it never
+    reached the served GeoJSON), so the contradiction had no consumer, only a
+    trap. ⚠️ **Measuring the exposure changed the fix:** the served path was
+    already honest — `frac_other` renders as "Unclassified" grey. The real
+    weakness was `_categorize` only **warning**, which a weekly CI refresh
+    swallows; the monthly digest now reports it
+    (`vintage_report.check_unclassified_zoning`) rather than failing the
+    pipeline. `DECISIONS.md` 2026-08-31. **Nothing is open here.**
   - ⚠️ **METHOD, and it cost a wrong number in this very run:** a parcel-level
     cross-tab on `Property_Info.zoning` said `other` held **$36.8B**. It does
     not — that column's vocabulary is not the one the metric uses
@@ -2259,6 +2240,8 @@ Services carries no sparkline — measured, it does.)_
 ## Done
 
 Closed items moved out of `## Open work` live in **`docs/TODO_archive.md`** — one line each below, reasoning there.
+
+- [x] **CLOSED 2026-08-30 — the 15 hardcoded activity-window labels now read from one constant, and drift fails the build.** (Audit F4; the `status.json` route was rejected on measurement.) — CLOSED 2026-08-30 · `docs/TODO_archive.md`
 
 - [x] **CLOSED 2026-08-29 — the three verify failures are resolved, and one of them was NEVER a master failure.** — CLOSED 2026-08-29 · `docs/TODO_archive.md`
 
