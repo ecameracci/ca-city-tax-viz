@@ -2,7 +2,7 @@
 
 A public fiscal analysis comparing Edmonton's property tax revenue to the cost of servicing it, by area.
 
-[Edmonton Tax Visualization](https://peterfriedrich.github.io/edmonton-tax-viz/)
+[Edmonton Tax Visualization](https://ecameracci.github.io/ca-city-tax-viz/)
 
 ## What This Is
 
@@ -30,11 +30,14 @@ Municipal levy (or assessed value) ÷ Neighbourhood area = Revenue (value) per a
 
 with a toggleable denominator: **ground acres** (boundary area — robust to record-to-parcel cardinality issues) or **parcel/lot acres** (deduplicated titled lot area — the Urban3-analogous "developable land" view, with a low-parcel-fraction guard). The revenue numerator is the per-account municipal levy computed from assessed value × the class mill rate.
 
-The **cost side** layers service supply and modeled service cost per acre: road network supply, a bylaw-native stormwater charge model, fire-rescue service demand, and a per-connection water/sanitary model — each validated against published figures where possible (`docs/FINDINGS_utility_validation.md`). Modeled figures are labeled *modeled, not billed*.
+The **cost side** layers service supply and modeled service cost per acre: road network supply, a bylaw-native stormwater charge model, fire-rescue service demand, and a per-connection water/sanitary model — each validated against published figures where possible (`docs/FINDINGS_utility_validation.md`). A top-level **Cost** metric summarizes the modeled roads + fire cost per acre where that data is available. Modeled figures are labeled *modeled, not billed*.
+
+A separate **Transportation** view compares measured road length density with dedicated bike-route length density. The default denominator is `km / km²`; when the generated web data includes total length fields and 2021 Census population, it also exposes `km / 1,000 residents`. This is road centreline / route length, not vehicle lane-kilometres.
 
 **Data sources (all open data):**
 - [Property Assessment Data](https://data.edmonton.ca/City-Administration/Property-Assessment-Data-Current-Calendar-Year-/q7d6-ambg) (~440,000 records, refreshed weekly, annual roll)
-- Neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, fire-rescue events & stations, and property information (lot sizes) — all from the [Edmonton Open Data Portal](https://data.edmonton.ca/)
+- Neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, dedicated cycling infrastructure, fire-rescue events & stations, transit schedule outputs, and property information (lot sizes) — all from the [Edmonton Open Data Portal](https://data.edmonton.ca/)
+- [2021 Federal Census: Population](https://data.edmonton.ca/d/eg3i-f4bj) (`eg3i-f4bj`) from the City of Edmonton Neighbourhood Profiles / Federal Census 2021 source, used only as a Transportation per-resident denominator
 - Published mill rates and utility tariffs (EPCOR bylaw rates, franchise fee schedules)
 
 **Tooling:** Python only (pandas + geopandas + shapely; deck.gl in the browser) — no GIS desktop software. The full pipeline regenerates from open data in one command and runs weekly in CI.
@@ -58,26 +61,27 @@ Work that would genuinely need parcel *geometry* is catalogued in `docs/PARCEL_L
 
 ## Status
 
-**Live:** interactive 3D map at **https://peterfriedrich.github.io/edmonton-tax-viz/**
-— municipal tax revenue (and assessed value) per acre by neighbourhood, with a
-land-use set-aside layer and a residential-only lens.
+**Live:** interactive 3D map at **https://ecameracci.github.io/ca-city-tax-viz/**
+— municipal tax revenue, assessed value, and modeled roads + fire cost per acre
+by neighbourhood, with land-use set-aside, residential-only, Transportation,
+Services, Ratio, Uses, Development, and Glass-grid lenses.
 
-**Data-quality reports:** **https://peterfriedrich.github.io/edmonton-tax-viz/notebooks/**
+**Data-quality reports:** **https://ecameracci.github.io/ca-city-tax-viz/notebooks/**
 — standalone, reproducible findings about defects in Edmonton's published open
 data, each recomputing every figure at run time and asserting its own
 invariants:
 
-- [The current assessment roll is published under the wrong coverage year](https://peterfriedrich.github.io/edmonton-tax-viz/notebooks/roll-year-metadata.html)
+- [The current assessment roll is published under the wrong coverage year](https://ecameracci.github.io/ca-city-tax-viz/notebooks/roll-year-metadata.html)
   — `q7d6-ambg`'s `Period of Coverage` says 2025; the rows are the 2026 roll.
-- [Whole buildings are missing from the 2024 slice of the Historical roll](https://peterfriedrich.github.io/edmonton-tax-viz/notebooks/historical-2024-gap.html)
+- [Whole buildings are missing from the 2024 slice of the Historical roll](https://ecameracci.github.io/ca-city-tax-viz/notebooks/historical-2024-gap.html)
   — 2,448 accounts across 188 neighbourhoods, 29 addresses losing every account.
-- [What public data can and cannot say about tax-exempt property](https://peterfriedrich.github.io/edmonton-tax-viz/notebooks/exemption-uncertainty.html)
+- [What public data can and cannot say about tax-exempt property](https://ecameracci.github.io/ca-city-tax-viz/notebooks/exemption-uncertainty.html)
   — sizing a ~$15B gap, and why public data cannot resolve it.
 
 Sources are under `notebooks/standalone/`; the register of known issues and
 whether anyone has been told is `docs/DATA_ISSUES.md`.
 
-**Full / specialist build:** **https://peterfriedrich.github.io/edmonton-tax-viz/full/**
+**Full / specialist build:** **https://ecameracci.github.io/ca-city-tax-viz/full/**
 — the same map with additional specialist controls (Infill mode, Industrial
 metric, deeper data-detail) exposed. This is the build for anyone visiting the
 repo directly; the public root above is the streamlined view.
@@ -86,13 +90,17 @@ The **cost side is
 built** (`docs/SPEC_services.md`, `docs/SPEC_utilities.md`): a Services view
 layers the city-maintained road network (road supply per acre), a **modeled
 stormwater charge** per acre, **fire-rescue service demand** per acre, and a
-**modeled water/sanitary charge** per acre; a Ratio view shows **revenue per
-road metre** — how much municipal revenue backs each metre of neighbourhood
-road. A Uses view maps the zoning bylaw's land-use categories, and a Glass
-view renders the metric in **100 m grid cells** (the Urban3-style detail
-level). Both the Money and Glass views toggle between ground acres and
-**parcel (lot) acres** as the denominator. A weekly GitHub Action regenerates
-the data and redeploys automatically (see `docs/SPEC_deployment.md`).
+**modeled water/sanitary charge** per acre; the top-level Cost metric shows the
+modeled roads + fire cost per acre; and a Ratio view shows **revenue per road
+metre** or **revenue as a multiple of modeled roads + fire service cost**. A
+Transportation view compares road kilometres with dedicated bike-route
+kilometres by area, with a Census-backed per-resident denominator when the
+needed fields are present. A Uses view maps the zoning bylaw's land-use
+categories, and a Glass view renders the metric in **100 m grid cells** (the
+Urban3-style detail level). Both the Money and Glass views toggle between
+ground acres and **parcel (lot) acres** as the denominator. A weekly GitHub
+Action regenerates the data and publishes a clean static artifact branch (see
+`docs/SPEC_deployment.md`).
 
 See [`/research`](/research) for background findings and data source inventory.
 

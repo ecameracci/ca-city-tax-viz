@@ -1994,7 +1994,7 @@ the filed base for the right year and ~10% off for a neighbouring one.
 
 ## 17. 2021 Federal Census population (Transportation denominator, added 2026-08-31)
 
-**Source:** Edmonton Open Data dataset `eg3i-f4bj` — "2021 Federal Census: Population". This is the City of Edmonton Neighbourhood Profiles / Federal Census 2021 population source; the same population family is surfaced in the City's Tableau Public Neighbourhood Profiles workbook. The pipeline downloads the Socrata CSV (`data/raw/census_population_2021.csv`) because the simple Tableau crosstab CSV endpoint was verified to return only the workbook's default selected neighbourhood (`ABBOTTSFIELD`) unless a workbook session/filter is driven interactively.
+**Source:** Edmonton Open Data dataset `eg3i-f4bj` — "2021 Federal Census: Population". This is the City of Edmonton Neighbourhood Profiles / Federal Census 2021 population source; the same population family is surfaced in the City's Tableau Public Neighbourhood Profiles workbook. That Tableau page has an interactive neighbourhood dropdown: its default selected neighbourhood is `ABBOTTSFIELD`, and other neighbourhoods can be selected in the workbook UI. The pipeline downloads the Socrata CSV (`data/raw/census_population_2021.csv`) because the static/simple Tableau crosstab CSV endpoint reflects the current/default workbook selection unless a workbook session/filter is driven interactively.
 
 **Use in this project:** denominator only. The Transportation view may show road kilometres or dedicated bike-route kilometres per 1,000 residents only when the web GeoJSON carries both:
 
