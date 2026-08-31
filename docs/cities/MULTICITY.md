@@ -30,7 +30,7 @@ The current browser expects a neighbourhood-level GeoJSON plus optional sidecar 
 | Calgary | Community Districts | Strong | Open parcel assessment has values/classes/community/geometry; tax rates need official page/bylaw pinning. |
 | Toronto | 158 neighbourhoods | Blocked from open data | No open parcel/account assessment roll with assessed values/classes; services/spatial branch first. |
 | Hamilton | Planning neighbourhoods | Blocked from open data | Parcel polygons are open-ish but lack value/class/roll fields; services/spatial branch first. |
-| Montréal | Quartiers sociologiques or housing-reference quartiers | Feasible, but not Edmonton-equivalent | Open tax-bill lines + evaluation-unit geometry support aggregated revenue/value work, but with Montréal-specific first-issuance tax-account semantics and strict privacy handling. |
+| Montréal | Quartiers sociologiques or housing-reference quartiers | Experimental / not Edmonton-equivalent | Evaluation-unit geometry is open but lacks assessed value in inspected fields. Tax-bill lines may support aggregated value/revenue work, but only with Montréal-specific first-issuance tax-account semantics and strict privacy handling. |
 
 ## Recommended implementation sequence
 
@@ -38,7 +38,7 @@ The current browser expects a neighbourhood-level GeoJSON plus optional sidecar 
 2. Add a city-source config/adapters layer with explicit domain, source IDs, raw filenames, CRS, join keys, and canonical output columns.
 3. Implement Calgary first for the closest Edmonton-like revenue/value workflow.
 4. Implement Vancouver with a clear revenue semantic label: actual property-tax levy / total notice amount unless municipal-only rates are reconstructed.
-5. Implement Montréal with a separate tax-bill-line adapter; filter tax-line categories explicitly and aggregate `ID_CUM`-joined records before web export.
+5. Implement Montréal as spatial/service first, then optionally add a separate tax-bill-line adapter only after privacy/methodology review; filter tax-line categories explicitly and aggregate `ID_CUM`-joined records before web export.
 6. Implement Toronto and Hamilton as services/spatial/data-availability branches unless lawful aggregate assessment inputs are secured.
 7. Make city-specific UI copy part of the manifest or generated status file before marking any non-Edmonton city live.
 

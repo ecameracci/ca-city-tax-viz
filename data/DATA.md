@@ -24,7 +24,7 @@ Current feasibility from the first research pass:
 
 - **Calgary:** strongest Edmonton-like candidate. Open parcel assessment data includes assessed values, classes, community codes/names, land size, and geometry. Tax rates need official page/bylaw pinning or scraping with tests.
 - **Vancouver:** feasible with different semantics. The `property-tax-report` source includes values and `tax_levy`, but `tax_levy` is the total notice amount, not a clean municipal-only mill-rate calculation.
-- **Montréal:** revenue-capable with Montréal-specific tax-bill semantics. Open tax-account line data and evaluation-unit geometry are promising, but the result is not an Edmonton-style assessment-roll-plus-mill-rate reconstruction and must be aggregated early for privacy.
+- **Montréal:** strong spatial/service candidate, but not yet defensibly ready for full Edmonton-style value/revenue lenses. Open evaluation-unit geometry does not include assessed/current value in inspected fields; annual tax-account line data includes `VAL_IMPOSABLE`/`MONTANT_DETAIL`, but it is granular account/address-level data and must be privacy-reviewed, filtered, and aggregated early before use.
 - **Toronto:** strong spatial/service data, but no open Edmonton-equivalent assessment roll. Revenue/value lenses should be disabled unless lawful aggregate assessment data is obtained.
 - **Hamilton:** strong ArcGIS spatial/service data, but no open assessment roll with value/class fields. Revenue/value lenses should be disabled unless MPAC/Hamilton aggregates or another defensible source is obtained.
 
