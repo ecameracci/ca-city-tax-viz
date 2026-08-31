@@ -176,6 +176,7 @@
   <div id="views" class="panel">
     <button data-view="money" class="active" title="Revenue/value prisms — the money plane">Money</button>
     <button data-view="development" title="New dwelling units built per acre from issued building permits — where the city is actually growing; greenfield growth land is shown in full colour here">Development</button>
+    <button data-view="transportation" title="Road length density versus dedicated bike-route length density, expressed as km per km². The data does not include vehicle lane counts, so this is road kilometres, not lane-kilometres">Transportation</button>
     <button data-view="services" title="City services on the ground — toggle each service on its own layer; roads coloured by metres per acre, stormwater by its modeled charge per acre">Services</button>
     <button data-view="ratio" title="Ghost prisms of revenue per road metre — or per fire event — over the neutral road network">Ratio</button>
     <button data-view="uses" title="Each neighbourhood's dominant zoned land use — what the land is designated for, not what it yields; optional prisms show each neighbourhood's residential share">Uses</button>
@@ -260,6 +261,11 @@
     <div id="devdetail">
       <button data-devdetail="hood" title="Neighbourhood choropleth — each hood coloured by the metric per acre">Neighbourhood</button>
       <button data-devdetail="grid" class="active" title="100 m grid-cell spikes of geocoded permits — height and colour show new units (or permits) per cell; the flat plane underneath keeps the neighbourhood hover (the default)">100 m grid — activity</button>
+    </div>
+    <span class="hd" id="transport-hd">Transportation metric</span>
+    <div id="transport">
+      <button data-transport="roads" class="active" title="Collector + local road length density, expressed as road kilometres per square kilometre. Not lane-counted: the source has road centreline length, not vehicle lane counts.">Road km</button>
+      <button data-transport="bike" title="Dedicated cycling-infrastructure length density, expressed as route kilometres per square kilometre. Streets merely signed as bike routes are excluded upstream.">Bike-route km</button>
     </div>
     <span class="hd" id="prism-hd">Money plane</span>
     <label id="prism-row" title="Prism opacity — how strongly the ratio prisms overlay the road network">
@@ -852,6 +858,52 @@
              p.revenue_per_acre != null && !p.is_set_aside;
     };
 
+    // --- transportation view -------------------------------------------------
+    // The shipped neighbourhood file has length DENSITY columns only:
+    // road_m_per_acre and bike_m_per_acre. It does NOT carry vehicle lane counts
+    // or lane-kilometres, so this view must say road km / km² and dedicated
+    // bike-route km / km² rather than "vehicle lane-km". The conversion is just
+    // metres per acre expressed in km per square kilometre.
+    const M_PER_ACRE_TO_KM_PER_KM2 = 0.247105381;
+    const TRANSPORT = {
+      roads: {
+        col: "road_m_per_acre",
+        label: "Road km",
+        title: "Edmonton: Road Kilometres per km²",
+        legend: "Road kilometres per km²",
+        maxDp: 1,
+        transform: null,
+        blurb: "Each neighbourhood is coloured by collector + local road length " +
+               "density, expressed as road kilometres per square kilometre. " +
+               "This is centreline road length, not vehicle lane-kilometres: " +
+               "the source data does not include lane counts. Arterials are " +
+               "shown as neutral context, matching the Services view, because " +
+               "they are shared citywide infrastructure. Colour is linear. " +
+               "Grey = set-aside natural/undeveloped land.",
+        fmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
+                  " road km / km²",
+      },
+      bike: {
+        col: "bike_m_per_acre",
+        label: "Bike-route km",
+        title: "Edmonton: Dedicated Bike-Route Kilometres per km²",
+        legend: "Dedicated bike-route kilometres per km² (sqrt colour)",
+        maxDp: 1,
+        transform: "sqrt",
+        blurb: "Each neighbourhood is coloured by dedicated cycling-infrastructure " +
+               "length density, expressed as route kilometres per square kilometre: " +
+               "protected, painted and contra-flow bike lanes, local street " +
+               "bikeways, and off-road shared pathways and trails. This is route " +
+               "length, not a lane-counted measure. Streets merely signed as bike " +
+               "routes are excluded upstream, as are walkways and routes marked " +
+               "coming soon. Lines trace the dedicated bike-route network. Colour " +
+               "is square-root scaled. Grey = set-aside natural/undeveloped land.",
+        fmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
+                  " dedicated bike-route km / km²",
+      },
+    };
+    const transportMode = () => TRANSPORT[state.transportMetric];
+
     // --- uses view (use-mix, 2026-07-03) -------------------------------------
     // Dominant zoned land use per hood — categorical, flat (no extrusion on
     // the ground layer: it shows what the land IS, not a magnitude; the
@@ -1097,6 +1149,11 @@
 
     // Per-view chrome. money's title/blurb stay metric-driven (METRICS).
     const VIEWS = {
+      transportation: {
+        title: null, // follows the active Transportation metric
+        blurb: null, // follows transportMode().blurb
+        opacity: null, // no prisms in this view
+      },
       services: {
         title: "Edmonton: City Services",
         blurb: null, // follows the colour-driving service — servicesBlurb()
@@ -1476,6 +1533,7 @@
                     // rest of the layers panel.
                     amenity: { lrt: false, school: false },
                     ratioDenom: "roads", // Ratio-view denominator (RATIO_DENOMS); persists like denom
+                    transportMetric: "roads", // Transportation-view metric: road length density | dedicated bike-route length density
                     devMetric: "units", // Development-view sub-metric: units | permits per acre
                     devWindow: "long", // Development-view activity window: 3yr (recent) | 5yr | long (2009–2025, the default)
                     devGrid: true, // Development-view 100 m detail grid (the default; off = the hood choropleth)
@@ -1758,6 +1816,8 @@
           const plane = SERVICES[state.svcDriver] && SERVICES[state.svcDriver].plane;
           t = plane && plane.transform === "sqrt" ? Math.sqrt(p) : p;
         }
+        else if (state.view === "transportation")
+          t = transportMode().transform === "sqrt" ? Math.sqrt(p) : p;
         else if (state.view === "development")
           // sqrt colour on the activity scales; the age spikes are linear in
           // year (an interval scale — sqrt of a year is meaningless).
@@ -1924,6 +1984,15 @@
         updateTriggers: { getLineColor: [state.ramp, neutral] },
       })];
     }
+    function ensureRoads() {
+      if (roadsData) return Promise.resolve();
+      roadsFetch ??= fetch(ROADS_URL).then(r => r.json()).then(d => {
+        roadsData = d;
+        if (state.view === "transportation" && state.transportMetric === "roads")
+          overlay.setProps({ layers: buildLayers() });
+      });
+      return roadsFetch;
+    }
 
     // Per-column service scale anchors, computed once from the data (tracks
     // weekly refreshes like ratioScale): colour clamp at p97.5 of the
@@ -1994,6 +2063,24 @@
         },
         pickable: false,
         updateTriggers: { getFillColor: [state.ramp, col] },
+      });
+    }
+    function transportPlaneLayer() {
+      const mode = transportMode();
+      return new deck.GeoJsonLayer({
+        id: "transport-plane",
+        data: state.data,
+        filled: true,
+        stroked: false,
+        extruded: false,
+        getFillColor: f => {
+          const p = f.properties;
+          if (p.is_set_aside) return SET_ASIDE_COLOR;
+          if (p[mode.col] == null) return GLASS_PLANE_COLOR;
+          return rampColorAt(svcT(p[mode.col], mode.col));
+        },
+        pickable: false,
+        updateTriggers: { getFillColor: [state.ramp, state.transportMetric] },
       });
     }
 
@@ -3288,7 +3375,8 @@
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           bikeLinesData = d;
-          if (d && state.view === "services" && state.services.bike)
+          if (d && ((state.view === "services" && state.services.bike) ||
+                    (state.view === "transportation" && state.transportMetric === "bike")))
             overlay.setProps({ layers: buildLayers() });
         })
         .catch(() => {});
@@ -3917,6 +4005,17 @@
           autoHighlight: true,
           highlightColor: [255, 255, 255, 40],
         }), ...(state.usesPrisms ? [resPrisms()] : []), ...labelLayer()];
+      }
+
+      if (state.view === "transportation") {
+        // Flat neighbourhood plane by measured length density, with the matching
+        // network overlay for context. Roads are road-centreline kilometres, not
+        // vehicle lane-kilometres; bike is dedicated route kilometres, not a
+        // lane-counted measure.
+        const layers = [transportPlaneLayer()];
+        if (state.transportMetric === "roads") layers.push(...roadLayers(false));
+        else layers.push(...bikeLinesLayer());
+        return [...layers, hoodHoverLayer(), ...labelLayer()];
       }
 
       if (state.view === "services") {
@@ -4958,6 +5057,20 @@
       const p = object.properties;
       const name = withName ? `<b>${esc(p.neighbourhood_name)}</b><br/>` : "";
 
+      if (state.view === "transportation") {
+        const mode = transportMode();
+        if (p[mode.col] == null)
+          return { className: "tip", html: name + `<span class="muted">no transportation length data</span>` };
+        const rows = [mode.fmt(p[mode.col])];
+        if (state.transportMetric === "roads")
+          rows.push(`<span class="muted">collector + local road centreline length — not lane-km</span>`);
+        else
+          rows.push(`<span class="muted">dedicated bike-route length — not lane-counted</span>`);
+        if (p.is_set_aside)
+          rows.push(`<span class="muted">Set aside — ${esc(p.set_aside_reason)}</span>`);
+        return { className: "tip", html: name + rows.join("<br/>") };
+      }
+
       if (state.view === "services") {
         // Only the CHECKED services get a row now (Peter, 2026-08-06) — the
         // tooltip mirrors the layers panel instead of printing every service's
@@ -5838,6 +5951,23 @@
         document.getElementById("legend-cats").innerHTML = dotRows.join("");
         if (dotRows.length)
           document.getElementById("legend-cats").style.display = "block";
+      } else if (state.view === "transportation") {
+        const mode = transportMode();
+        const clamp = svcScale(mode.col).clamp * M_PER_ACRE_TO_KM_PER_KM2;
+        document.getElementById("legend-label").textContent = mode.legend;
+        document.getElementById("legend-min").textContent = "0";
+        document.getElementById("legend-max").textContent = clamp.toFixed(mode.maxDp) + "+";
+        label.textContent = state.transportMetric === "roads"
+          ? "Arterial — shared infrastructure"
+          : "Set aside — natural / undeveloped land";
+        sw.style.background = state.transportMetric === "roads"
+          ? `rgb(${ARTERIAL_COLOR.slice(0, 3).join(",")})`
+          : "rgb(104,108,122)";
+        document.getElementById("legend-cats").innerHTML = state.transportMetric === "bike"
+          ? `<div class="cat"><span class="sw" style="background:rgb(${BIKE_LINE_COLOR.slice(0, 3).join(",")});height:3px;align-self:center"></span><span>Dedicated bike-route network</span></div>`
+          : "";
+        if (state.transportMetric === "bike")
+          document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "development") {
         // Grid mode: the legend follows the spikes (per 100 m cell), not the
         // per-acre choropleth it replaced.
@@ -5998,6 +6128,23 @@
       if (checked) ensureReference();   // first tick may precede the fetch
       overlay.setProps({ layers: buildLayers() });
       document.getElementById("reference-on").checked = checked;
+    }
+
+    function syncTransportControls() {
+      document.querySelectorAll("#transport button").forEach(b =>
+        b.classList.toggle("active", b.dataset.transport === state.transportMetric));
+    }
+    function applyTransportMetric(metric) {
+      if (metric === state.transportMetric || !TRANSPORT[metric]) return;
+      state.transportMetric = metric;
+      syncTransportControls();
+      if (state.view !== "transportation") return;
+      if (metric === "roads") ensureRoads();
+      if (metric === "bike") ensureBikeLines();
+      document.getElementById("title-h").textContent = transportMode().title;
+      document.getElementById("title-p").textContent = transportMode().blurb;
+      refreshLegend();
+      overlay.setProps({ layers: buildLayers() });
     }
 
     // Toggle the Uses view's residential prisms (height = share of zoned
@@ -6282,9 +6429,10 @@
       // experiment you were in so the #views button returns you there.
       const labShow = LAB_VIEWS.includes(v);
       if (labShow) state.lab = v;
+      const transportShow = v === "transportation";
       syncLabControls(v);
       document.getElementById("layers").style.display =
-        (prisms || v === "services" || v === "uses" || moneyDetailShow || moneyDenom || devMetricShow || devWindowShow || changeShow || labShow) ? "flex" : "none";
+        (prisms || transportShow || v === "services" || v === "uses" || moneyDetailShow || moneyDenom || devMetricShow || devWindowShow || changeShow || labShow) ? "flex" : "none";
       // Money's render toggle (Neighbourhood prisms vs 100 m glass grid).
       document.getElementById("moneydetail-hd").style.display = moneyDetailShow ? "block" : "none";
       document.getElementById("moneydetail").style.display = moneyDetailShow ? "flex" : "none";
@@ -6303,9 +6451,12 @@
       syncPrismRow(v);
       document.getElementById("services-hd").style.display = v === "services" ? "block" : "none";
       document.getElementById("services").style.display = v === "services" ? "block" : "none";
-      if ((v === "services" || v === "ratio") && !roadsData) {
-        roadsFetch ??= fetch(ROADS_URL).then(r => r.json()).then(d => { roadsData = d; });
-        await roadsFetch;
+      document.getElementById("transport-hd").style.display = transportShow ? "block" : "none";
+      document.getElementById("transport").style.display = transportShow ? "flex" : "none";
+      syncTransportControls();
+      if ((v === "services" || v === "ratio" ||
+           (v === "transportation" && state.transportMetric === "roads")) && !roadsData) {
+        await ensureRoads();
         if (state.view !== v) return; // switched again while the fetch ran
       }
       // Station dots for the fire/transit services — non-blocking (the
@@ -6313,6 +6464,7 @@
       if (v === "services" && state.services.fire) ensureFireStations();
       if (v === "services" && state.services.transit) { ensureTransitStations(); ensureLrtLines(); }
       if (v === "services" && state.services.bike) ensureBikeLines();
+      if (v === "transportation" && state.transportMetric === "bike") ensureBikeLines();
       // Zoning ground layer for the uses view — fetched once; a missing file
       // resolves null and the view falls back to dominant-colour hoods.
       if (v === "uses" && !zoningData) {
@@ -6416,11 +6568,13 @@
       const chrome = v === "money" ? METRICS[state.metric] : VIEWS[v];
       document.getElementById("title-h").textContent =
         v === "glass" ? METRICS[state.metric].title :
+        v === "transportation" ? transportMode().title :
         v === "ratio" ? ratioDenom().title :
         v === "deviation" ? deviationTitle() :
         v === "development" ? devTitle() : chrome.title;
       document.getElementById("title-p").textContent =
         v === "glass" ? glassBlurb() :
+        v === "transportation" ? transportMode().blurb :
         v === "services" ? servicesBlurb() :
         v === "ratio" ? ratioDenom().blurb :
         v === "uses" ? usesBlurb() :
@@ -6709,6 +6863,8 @@
         b.addEventListener("click", () => applyDevDetail(b.dataset.devdetail)));
       document.querySelectorAll("#devmode button").forEach(b =>
         b.addEventListener("click", () => applyDevMode(b.dataset.devmode)));
+      document.querySelectorAll("#transport button").forEach(b =>
+        b.addEventListener("click", () => applyTransportMetric(b.dataset.transport)));
       document.querySelectorAll("#moneymode button").forEach(b =>
         b.addEventListener("click", () => applyMoneyMode(b.dataset.moneymode)));
       document.querySelectorAll("#chgwindow button").forEach(b =>
@@ -6765,6 +6921,18 @@
       if (!state.data.features.some(f => f.properties.road_m_per_acre != null) || !FULL_BUILD) {
         document.querySelectorAll('#views button[data-view="services"], #views button[data-view="ratio"]')
           .forEach(b => { b.style.display = "none"; });
+      }
+      state.hasTransportRoads = state.data.features.some(f => f.properties.road_m_per_acre != null);
+      state.hasTransportBike = state.data.features.some(f => f.properties.bike_m_per_acre != null);
+      if (!state.hasTransportRoads && !state.hasTransportBike) {
+        document.querySelector('#views button[data-view="transportation"]').style.display = "none";
+      } else {
+        document.querySelector('#transport button[data-transport="roads"]').style.display =
+          state.hasTransportRoads ? "" : "none";
+        document.querySelector('#transport button[data-transport="bike"]').style.display =
+          state.hasTransportBike ? "" : "none";
+        if (!state.hasTransportRoads && state.transportMetric === "roads")
+          state.transportMetric = "bike";
       }
       if (!state.data.features.some(f => f.properties.storm_charge_per_acre != null)) {
         document.querySelector('#services .svc[data-service="storm"]').style.display = "none";
@@ -6840,6 +7008,8 @@
       document.getElementById("layers").style.display = "flex";
       document.getElementById("prism-hd").style.display = "none";
       document.getElementById("prism-row").style.display = "none";
+      document.getElementById("transport-hd").style.display = "none";
+      document.getElementById("transport").style.display = "none";
       // Same reason, same place: the amenity rows are Glass-only and have no
       // CSS default-hidden state, so on the Money default they need hiding
       // here. (In Glass the sync runs from applyView, after the grid fetch.)
