@@ -47,6 +47,14 @@
       "available": false,
       "status": "research",
       "branch": "city/hamilton"
+    },
+    {
+      "id": "montreal",
+      "name": "Montréal",
+      "order": 6,
+      "available": false,
+      "status": "research",
+      "branch": "city/montreal"
     }
   ]
 }

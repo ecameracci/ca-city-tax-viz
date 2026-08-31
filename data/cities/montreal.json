@@ -1,0 +1,158 @@
+{
+  "city": "montreal",
+  "name": "Montréal",
+  "recommended_geography": "Quartiers sociologiques or quartiers de référence en habitation; choose one and document the grain before implementation",
+  "feasibility": "revenue-capable with Montréal-specific tax-bill semantics; not Edmonton-equivalent without careful tax-line filtering",
+  "summary": "Montréal has strong official open data for property/tax bill lines, evaluation-unit geometry, boundaries, roads, cycling, transit, and parking. A first revenue/value adapter should aggregate published municipal tax-account lines to neighbourhood geography, but must disclose that this is a first-issuance tax-bill-line model and not a clean Edmonton-style municipal levy reconstructed from an assessment roll plus simple mill rates.",
+  "privacy": "Published role/tax files include evaluation-unit IDs, account numbers, civic addresses, street names, unit ranges, matricules, taxable values, and tax amounts. Québec role-foncier rules limit public consultation patterns; never ship raw parcel/account/address/matricule web artifacts. Aggregate to neighbourhood/borough or a privacy-safe grid before publishing.",
+  "sources": {
+    "boundaries": {
+      "title": "Quartiers sociologiques",
+      "id": "c8f37ad6-16ff-4cdc-9e5a-e47898656fc9",
+      "package": "quartiers-sociologiques",
+      "url": "https://donnees.montreal.ca/dataset/quartiers-sociologiques",
+      "format": "GeoJSON/SHP/CSV",
+      "resource_ids": {
+        "geojson": "9f68405f-c658-42e1-a786-cb43a29e344e",
+        "shp": "d342d18e-f710-4991-a259-0092bac3d62c",
+        "csv": "055b46c1-4c3d-4af4-9c3b-1ff4b4ec39f6"
+      },
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Alternative official geography is Quartiers de référence en habitation (`quartiers`, package id f38c91a1-e33f-4475-a112-3b84b1c60c1e). Pick one canonical geography and avoid mixing them."
+    },
+    "administrative_boundaries": {
+      "title": "Limites administratives de l'agglomération de Montréal (arrondissements et villes liées)",
+      "id": "9797a946-9da8-41ec-8815-f6b276dec7e9",
+      "package": "limites-administratives-agglomeration",
+      "url": "https://donnees.montreal.ca/dataset/limites-administratives-agglomeration",
+      "format": "GeoJSON/SHP",
+      "resource_ids": {
+        "wgs84_geojson": "e18bfd07-edc8-4ce8-8a5a-3b617662a794",
+        "mtm8_geojson": "6b313375-d9bc-4dc3-af8e-ceae3762ae6e"
+      },
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Needed for borough-level tax files and rate semantics; not a neighbourhood-equivalent by itself."
+    },
+    "assessment_units": {
+      "title": "Unités d'évaluation foncière",
+      "id": "4ad6baea-4d2c-460f-a8bf-5d000db498f7",
+      "package": "unites-evaluation-fonciere",
+      "url": "https://donnees.montreal.ca/dataset/unites-evaluation-fonciere",
+      "format": "CSV/GeoJSON/SHP",
+      "resource_ids": {
+        "csv": "2b9dfc3d-91d3-48de-b32c-a2a6d9417079",
+        "geojson_zip": "866a3dbc-8b59-48ff-866d-f2f9d3bbee9d",
+        "shp_zip": "43c2cccf-a439-429b-a3c8-5d4ebce53e1b"
+      },
+      "key_fields": ["ID_UEV", "MATRICULE83", "CIVIQUE_DEBUT", "CIVIQUE_FIN", "NOM_RUE", "SUITE_DEBUT", "SUITE_FIN", "CODE_UTILISATION", "LIBELLE_UTILISATION", "CATEGORIE_UEF", "SUPERFICIE_TERRAIN", "SUPERFICIE_BATIMENT", "NO_ARROND_ILE_CUM", "MUNICIPALITE", "geometry"],
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Contains evaluation-unit geometry and general attributes, not a complete value/tax roll. Condominiums may overlap on the same location; some modified matricules use temporary 2m x 2m geometries."
+    },
+    "tax_bill_lines": {
+      "title": "Imposition annuelle de taxes municipales",
+      "id": "0a912de3-9307-4b63-bf19-3a4594f87e1f",
+      "package": "taxes-municipales",
+      "url": "https://donnees.montreal.ca/dataset/taxes-municipales",
+      "format": "CSV; one resource per arrondissement",
+      "update_frequency": "annual",
+      "coverage": "2021–2026 according to catalogue metadata checked 2026-08-31",
+      "key_fields": ["ARRONDISSEMENT", "NOM_ARRONDISSEMENT", "ANNEE_EXERCICE", "ID_CUM", "NO_COMPTE", "AD_EMPLAC_CIV1", "AD_EMPLAC_CIV2", "AD_EMPLAC_GENER", "AD_EMPLAC_RUE", "AD_EMPLAC_ORIENT", "AD_EMPLAC_SUITE1", "AD_EMPLAC_SUITE2", "CODE_DESCR_LONGUE", "DESCR_LONGUE", "VAL_IMPOSABLE", "TAUX_IMPOSI", "MONTANT_DETAIL"],
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "This is an extraction of each annual tax line composing the first issued tax account. Some personal fields are excluded, but address/account fields remain sensitive. The catalogue explicitly says it is not exhaustive City revenue data; later adjustments/exceptions may be absent. Use `ID_CUM` to join to evaluation units and aggregate early."
+    },
+    "tax_rates": {
+      "title": "Taux de taxation et tarification",
+      "id": "d4121ca5-6a7a-4776-964b-8e237b6a89e3",
+      "package": "taux-de-taxation-et-tarification",
+      "url": "https://donnees.montreal.ca/dataset/taux-de-taxation-et-tarification",
+      "format": "CSV",
+      "resource_ids": {
+        "csv": "58a8021d-3232-48e4-a5da-27450435e233"
+      },
+      "key_fields": ["Année", "Arrondissement", "Numéro d'arrondissement", "Secteur", "Mode de financement", "Conseil", "Catégorie", "Application", "Catégorie d'immeubles", "Description des immeubles", "Valeur minimale d'application", "Valeur maximale d'application", "Taux", "Règle d'application"],
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Useful for rate semantics and QA, but the catalogue metadata seen during research referenced older temporal coverage; verify currentness before relying on it. Montréal taxes include general property tax, water, road, ARTM contribution, borough taxes, and sector/property-type exceptions."
+    },
+    "roads": {
+      "title": "Géobase - réseau routier",
+      "id": "984f7a68-ab34-4092-9204-4bdfcca767c5",
+      "package": "geobase",
+      "url": "https://donnees.montreal.ca/dataset/geobase",
+      "format": "CSV/GeoJSON/SHP ZIP",
+      "resource_ids": {
+        "csv": "cdf491fa-bf3d-4eb1-8692-c9aa1df462cd",
+        "geojson": "9d3d60d8-4e7f-493e-8d6a-dcd040319d8d",
+        "zip": "70c1f8c7-91a0-4553-b602-89c3edb959b5"
+      },
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Road-centreline equivalent; verify field names and filter destroyed/planned/non-road segments before length metrics."
+    },
+    "bike": {
+      "title": "Réseau cyclable",
+      "id": "5ea29f40-1b5b-4f34-85b3-7c67088ff536",
+      "package": "pistes-cyclables",
+      "url": "https://donnees.montreal.ca/dataset/pistes-cyclables",
+      "format": "GeoJSON/SHP/PDF",
+      "resource_ids": {
+        "geojson": "0dc6612a-be66-406b-b2d9-59c9e1c65ebf",
+        "shp": "234c8ee4-d9d8-4bb1-b957-3e5cd495a5aa"
+      },
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Filter to current/built cycling infrastructure. REV package (`reseau-express-velo`) can be a context/subtype layer, not a replacement for the full cycling network."
+    },
+    "transit": {
+      "title": "STM horaires planifiés et trajets des bus et du métro",
+      "id": "5f691baf-0933-43fd-a715-1def37d029a6",
+      "package": "stm-horaires-planifies-et-trajets-des-bus-et-du-metro",
+      "url": "https://donnees.montreal.ca/dataset/stm-horaires-planifies-et-trajets-des-bus-et-du-metro",
+      "format": "GTFS ZIP",
+      "resource_ids": {
+        "gtfs_zip": "5aeab6ed-bab3-4e51-981a-a83883dc4b94"
+      },
+      "download_url": "http://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip",
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "STM service only. If regional commuter rail/REM/exo/ARTM coverage is required, use additional regional feeds and document operator scope."
+    },
+    "parking": {
+      "title": "Stationnements municipaux tarifés, sur rue et hors rue",
+      "id": "5115de69-76b1-444e-9409-ebcaa3f3f1d0",
+      "package": "stationnements-municipaux-tarifes-sur-rue-et-hors-rue",
+      "url": "https://donnees.montreal.ca/dataset/stationnements-municipaux-tarifes-sur-rue-et-hors-rue",
+      "format": "CSV tables",
+      "resource_ids": {
+        "places": "32821ddd-d893-41ff-9d02-ea94fbc6c930",
+        "reglementations": "6fb60df7-f1ef-4375-bc0f-c433040207a4",
+        "emplacement_reglementation": "e915d611-87d1-4ae1-a127-33a98ccf84f7"
+      },
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Includes paid municipal on-street and off-street parking places/rules. It is not an Edmonton-style city-managed parkade/surface-lot capacity inventory unless off-street rows and capacities can be separated defensibly."
+    },
+    "zoning_land_use": {
+      "title": "Land-use proxy from CUBF/use codes plus urban-plan layers; no single current citywide parcel zoning open dataset verified",
+      "url": "https://donnees.montreal.ca/dataset/unites-evaluation-fonciere",
+      "format": "CSV/GeoJSON plus supplemental urban-plan layers",
+      "key_fields": ["CODE_UTILISATION", "LIBELLE_UTILISATION", "CATEGORIE_UEF"],
+      "licence": "Creative Commons Attribution 4.0 International",
+      "caveat": "Treat as land-use/use-classification proxy, not legal zoning. Montréal borough zoning can be more restrictive and may live in borough-specific/interactive planning systems."
+    },
+    "population": {
+      "title": "Commande personnalisée - Recensement 2021",
+      "id": "2628b421-db80-45ff-aad1-e3782a947c6a",
+      "package": "commande-personnalisee-recensement-2021",
+      "url": "https://donnees.montreal.ca/dataset/commande-personnalisee-recensement-2021",
+      "format": "Beyond 20/20 / tabular resources; confirm exact table before implementation",
+      "licence": "Statistics Canada Open Licence / Open Government Licence terms per catalogue",
+      "caveat": "Research saw 2021 census custom tables at agglomeration, city, and arrondissement scales. Neighbourhood-level population for chosen quartiers may require dissemination-area/block apportionment from Statistics Canada boundaries. Older Montréal 2011 neighbourhood resources exist but should not be used as current denominator data."
+    }
+  },
+  "repo_module_mapping": {
+    "download": "Add a Montréal city adapter/config instead of extending Edmonton Socrata assumptions in scripts/download_data.py.",
+    "assessment_and_tax": "New loader should join taxes-municipales ID_CUM to unites-evaluation-fonciere geometry, filter tax line categories explicitly, and aggregate to chosen quartiers before web export.",
+    "boundaries": "New boundary loader for quartiers-sociologiques or quartiers de référence; document and test feature count/name stability.",
+    "roads": "New road loader for geobase, replacing Edmonton centreline fields with Montréal field mapping.",
+    "bike": "New bike loader for pistes-cyclables/REV subtype handling.",
+    "transit": "GTFS ZIP loader for STM, optionally regional feeds if scope expands.",
+    "parking": "New parking loader for municipal paid parking places/rules, with off-street/on-street separation and no capacity invention.",
+    "zoning": "Use CUBF land-use categories or verified borough/city zoning layers; do not reuse Edmonton zoning classifier."
+  }
+}
