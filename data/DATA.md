@@ -1083,22 +1083,32 @@ only** — never label the derived metric "total city cost".
   NOT "pays its way". The column ships to the live GeoJSON on the first refresh
   after the metric PR #59 — until then both controls are column-guarded off.
 ### The OPERATING trio (added 2026-08-03, transportation lens Stage 2)
-The same file also carries `roadway_ops`, `bikeway_ops` and `transit_ets`, on a
-**strictly operating basis** — maintenance + snow clearing, **no capital**.
+The same file also carries `roadway_ops`, `bikeway_ops`, `parking_ops`, and
+`transit_ets`, on a **strictly operating basis** — maintenance, snow clearing,
+or program operating budget, **no capital**.
 - **Roadway ops = $4.635/m/yr** ($1,285/km maintain + $3,350/km snow).
 - **Bikeway ops = $20.278/m/yr** ($178/km maintain + $20,100/km snow) — a
   bikeway metre costs **4.4× a road metre** to operate: cheap to keep up,
   expensive to clear (24-hour bare-pavement standard).
+- **Parking Operations = $7.067M gross operating expenses (2025 Tax Supported)**
+  from Edmonton Open Budget `operating_budget.csv`, filtered to program
+  `OPS/PARS - Parking Operations`, account type `Expenses`, positive budget
+  rows only. Allocated by each neighbourhood's share of deduplicated
+  City-managed parkade/surface-lot stalls from `tsq5-xp73`.
 - **Transit = ETS bus+LRT gross $436.605M (2025)**; **DATS excluded** ($31.966M
   of the $468.571M total) because it is door-to-door and generates no scheduled
   stop-events. Divided by the pipeline's OWN citywide stop-event total, like fire.
-- Source for the two rates: Taproot Edmonton reporting quoting City infrastructure
-  field operations staff; ETS from the 2024/2025 Annual Service Plan Appendix A.
-  Both **relayed**, not fetched from the Oracle box.
+- Source for the two road/bike rates: Taproot Edmonton reporting quoting City
+  infrastructure field operations staff; parking from Edmonton Open Budget; ETS
+  from the 2024/2025 Annual Service Plan Appendix A. The road/bike rates were
+  **relayed**, not fetched from the Oracle box.
 ### Known Quirks
 - **The fire term is a demand ALLOCATION of a mostly-fixed budget** — a hood with
   2× the events does not cost the City 2× (most fire cost is standing capacity).
   Carry that caveat in any UI copy. **The transit term has the identical shape.**
+  **Parking is also an allocation**, by stall share, not audited facility-level
+  operating spend; the Parking Operations program is broader than the off-street
+  parkade/surface-lot inventory and likely includes curbside/EPark operations.
 - ⚠️ **THIS FILE HOLDS TWO INCOMPATIBLE BASES.** `roadway_om_renewal` is
   **$50/m/yr lifecycle**; `roadway_ops` is **$4.635/m/yr operating** — the SAME
   metres, **~10.8× apart**, and both ship to the served GeoJSON. Never sum or
@@ -1112,8 +1122,8 @@ The same file also carries `roadway_ops`, `bikeway_ops` and `transit_ets`, on a
   ⚠️ **The $12 O&M half is deliberately NOT published**: it would sit beside
   `roadway_ops`' $4.635/m/yr as a *second* recurring road number, ~2.6× apart
   from it and from a different source. Renewal was chosen precisely because it
-  does not collide. **Inert to the served pipeline** — `load_unit_costs` still
-  returns its same 5 keys, the `bikeway_capital` pattern; only
+  does not collide. **Inert to the served pipeline** — `load_unit_costs` reads operating blocks
+  and selected lifecycle road/service inputs, but not `roadway_renewal`; only
   `tools/ward_rollup.py` reads it. ⚠️ Anything built on it is an annual
   **REQUIREMENT, not a funding gap**, and **collector+local only** (arterials
   excluded), so it understates the network. `DECISIONS.md` 2026-08-07.
@@ -1130,9 +1140,8 @@ The same file also carries `roadway_ops`, `bikeway_ops` and `transit_ets`, on a
   construction-only and explicitly excluding maintenance. Checked, not relayed:
   every row's implied $/km lands inside its own stated band and the $190.8M
   City-borne subtotal reconciles. ⚠️ **This is $/km of ASSET VALUE, not a rate —
-  it is INERT**, read by nothing (`load_unit_costs` still returns its same 5
-  keys; a test-equivalent assertion is that adding the block left all 560 tests
-  passing).
+  it is INERT**, read by nothing (`load_unit_costs` reads the operating blocks
+  and lifecycle road/service inputs, not this capital-only block).
 - ⚠️ **THE ONLY THING STILL MISSING IS A SERVICE LIFE, AND EDMONTON DOES NOT
   PUBLISH ONE** for bikeways or shared pathways. Searched 2026-08-04: the
   Development Impact page (roads + fire stations only), both Bike Plan PDFs, the
@@ -1171,6 +1180,10 @@ The same file also carries `roadway_ops`, `bikeway_ops` and `transit_ets`, on a
   `transport_cost_ops_per_acre`), so it is across columns, not inside a number.
 - **Sidewalks are a separate, non-overlapping category** (~5,776 km, ~$5.9M/yr
   ops) and are in neither the bike metric nor the 1,500 km snow denominator.
+- ⚠️ **Do not sum Transportation Operating cost with lifecycle road/service cost.**
+  `roadway_ops`, `bikeway_ops`, and `parking_ops` are annual operating-only
+  terms. They sit beside, not inside, `roadway_om_renewal`'s lifecycle road
+  reconstruction basis.
 
 ## 14. Geographic Reference Layers (orientation, added 2026-07-27)
 `web/data/reference.geojson` (**94 kB, 33 features**, committed) — the North
@@ -2026,7 +2039,12 @@ aggregates. Joined columns include:
 - `parking_stalls_total`, `parking_parkade_stalls`,
   `parking_surface_lot_stalls`
 - `parking_stalls_per_acre`, plus `parking_stalls_per_1000_people` when the
-  2021 Census population denominator is present.
+  2021 Census population denominator is present
+- `cost_parking_ops_annual` and `cost_parking_ops_per_acre` when
+  `parking_ops` is present in `data/city_unit_costs.json`. This is a modeled
+  share of the 2025 Parking Operations gross operating budget, allocated by
+  deduplicated stall count; it is not private parking cost and not
+  facility-level accounting.
 
 ## 18. 2021 Federal Census population (Transportation denominator, added 2026-08-31)
 

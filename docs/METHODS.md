@@ -1,6 +1,6 @@
 # Methods
 
-How the numbers on [the map](https://peterfriedrich.github.io/edmonton-tax-viz/)
+How the numbers on [the map](https://ecameracci.github.io/ca-city-tax-viz/)
 are made — in one place, written for a reader checking the work rather than
 building it. Every figure here is reproducible from open data with the code in
 this repository; deeper detail lives in the linked `FINDINGS_*` documents, each
@@ -124,13 +124,19 @@ Revenue alone is half the fiscal story. Each service layer is a *supply* or
   them would compare unrelated money flows. (`docs/SPEC_services.md`,
   `docs/SPEC_utilities.md` "Money-flow honesty")
 - **Transportation** — a separate view compares measured road kilometres,
-  dedicated bike-route kilometres, and **City-managed public parking supply**
-  from parkades and surface lots (`tsq5-xp73`). The denominator can be absolute neighbourhood supply, land area
-  (`km / km²` for roads/bike; stalls / km² for parking), or — when the web
-  export includes totals and a real person denominator — per-1,000-resident
-  readouts; that denominator is **2021 Federal Census
+  dedicated bike-route kilometres, and **City-managed parking** from parkades
+  and surface lots (`tsq5-xp73`). The mode can be absolute neighbourhood
+  supply, land area (`km / km²` for roads/bike; stalls / km² for parking), or —
+  when the web export includes totals and a real person denominator —
+  per-1,000-resident readouts; that denominator is **2021 Federal Census
   population** from the City of Edmonton Neighbourhood Profiles / Open Data
-  source (`eg3i-f4bj`, also surfaced in the City's Tableau workbook). Road/bike
+  source (`eg3i-f4bj`, also surfaced in the City's Tableau workbook). The same
+  control can show **Operating cost** for the selected transportation layer:
+  annual road maintenance + snow cost, annual dedicated bike-route maintenance
+  + snow cost, or a modeled share of Edmonton's 2025 Parking Operations gross
+  operating budget allocated by each neighbourhood's share of deduplicated
+  City-managed parking stalls. These are annual operating allocations only — no capital
+  replacement, no lifecycle reconstruction, and no all-in city cost. Road/bike
   length is centreline or route length, not vehicle lane-kilometres. Parking is
   city-owned/leased public supply only, not all parking in Edmonton; duplicate
   rate/use rows are preserved for facility popups but capacity is counted once
@@ -157,9 +163,7 @@ Revenue alone is half the fiscal story. Each service layer is a *supply* or
   density map. Included here for honesty about what was tried and why it
   isn't shown.
 
-Every modeled dollar figure is labeled **modeled, not billed** in the app, and
-each model is validated against published EPCOR / audited City figures to
-order-of-magnitude or better before shipping.
+Every modeled dollar figure is labeled **modeled, not billed** or **modeled annual operating cost** in the app. Operating Transportation costs are intentionally kept separate from lifecycle road/service-cost figures; they are not summed with capital renewal or labeled as total city cost.
 
 ## 6. Display honesty rules
 

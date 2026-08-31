@@ -266,13 +266,14 @@
     <div id="transport">
       <button data-transport="roads" class="active" title="Collector + local road length density. Not lane-counted: the source has road centreline length, not vehicle lane counts.">Road km</button>
       <button data-transport="bike" title="Dedicated cycling-infrastructure route length. Streets merely signed as bike routes are excluded upstream; route length is not lane-counted.">Bike-route km</button>
-      <button data-transport="parking" title="City-managed public parking supply: parkades and surface lots the City owns or leases. Not all parking in Edmonton.">City-managed stalls</button>
+      <button data-transport="parking" title="City-managed public parking supply: parkades and surface lots the City owns or leases. Not all parking in Edmonton.">City-managed parking</button>
     </div>
-    <span class="hd" id="transport-denom-hd">Denominator</span>
+    <span class="hd" id="transport-denom-hd">Mode</span>
     <div id="transport-denom">
       <button data-transport-denom="absolute" title="Show absolute neighbourhood supply — road/bike kilometres or City-managed parking stalls.">Absolute</button>
       <button data-transport-denom="area" class="active" title="Show supply density per square kilometre — length for roads/bike, stalls for City-managed parking.">Per km²</button>
       <button data-transport-denom="person" title="Show supply per 1,000 residents using total road/bike length or parking stalls and 2021 Census population. Hidden until those fields are present in the neighbourhood file.">Per person</button>
+      <button data-transport-denom="cost" title="Show modeled annual operating cost to the City for the selected transportation asset or program. Operating only; no capital replacement.">Operating cost</button>
     </div>
     <span class="hd" id="prism-hd">Money plane</span>
     <label id="prism-row" title="Prism opacity — how strongly the ratio prisms overlay the road network">
@@ -879,13 +880,16 @@
         totalCol: "road_m_total",
         personCol: "road_km_per_1000_people",
         areaScale: M_PER_ACRE_TO_KM_PER_KM2,
+        costCol: "cost_roads_ops_annual",
         label: "Road km",
         absoluteTitle: "Edmonton: Road Kilometres",
         areaTitle: "Edmonton: Road Kilometres per km²",
         personTitle: "Edmonton: Road Kilometres per 1,000 Residents",
+        costTitle: "Edmonton: Modeled Road Operating Cost",
         absoluteLegend: "Road kilometres",
         areaLegend: "Road kilometres per km²",
         personLegend: "Road kilometres per 1,000 residents (2021 Census)",
+        costLegend: "Modeled annual road operating cost",
         maxDp: 1,
         transform: null,
         absoluteBlurb: "Each neighbourhood is coloured by total collector + local road " +
@@ -908,23 +912,35 @@
                "Profiles Tableau workbook. This is centreline road length, not " +
                "vehicle lane-kilometres. Colour is linear. Grey = set-aside " +
                "natural/undeveloped land or missing/zero population.",
+        costBlurb: "Each neighbourhood is coloured by modeled annual operating " +
+               "cost for its collector + local roads: road metres multiplied by " +
+               "the reviewed Edmonton operating rate of $4.635 per metre per " +
+               "year ($1,285/km maintenance plus $3,350/km snow and ice control). " +
+               "Operating only: no road reconstruction or lifecycle capital, and " +
+               "not the larger roads+fire Service cost metric. Colour is linear. " +
+               "Grey = set-aside natural/undeveloped land or no measured " +
+               "collector/local road length.",
         absoluteFmt: v => (v / 1000).toFixed(v < 10000 ? 1 : 0) + " road km",
         areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " road km / km²",
         personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " road km / 1,000 residents",
+        costFmt: v => "$" + Math.round(v).toLocaleString() + " modeled road operating cost / yr",
       },
       bike: {
         areaCol: "bike_m_per_acre",
         totalCol: "bike_m_total",
         personCol: "bike_km_per_1000_people",
         areaScale: M_PER_ACRE_TO_KM_PER_KM2,
+        costCol: "cost_bike_ops_annual",
         label: "Bike-route km",
         absoluteTitle: "Edmonton: Dedicated Bike-Route Kilometres",
         areaTitle: "Edmonton: Dedicated Bike-Route Kilometres per km²",
         personTitle: "Edmonton: Dedicated Bike-Route Kilometres per 1,000 Residents",
+        costTitle: "Edmonton: Modeled Bike-Route Operating Cost",
         absoluteLegend: "Dedicated bike-route kilometres (sqrt colour)",
         areaLegend: "Dedicated bike-route kilometres per km² (sqrt colour)",
         personLegend: "Dedicated bike-route kilometres per 1,000 residents (sqrt colour)",
+        costLegend: "Modeled annual bike-route operating cost (sqrt colour)",
         maxDp: 1,
         transform: "sqrt",
         absoluteBlurb: "Each neighbourhood is coloured by total dedicated cycling-" +
@@ -950,23 +966,36 @@
                "Profiles Tableau workbook. This is route length, not a lane-counted " +
                "measure. Colour is square-root scaled. Grey = set-aside natural/" +
                "undeveloped land or missing/zero population.",
+        costBlurb: "Each neighbourhood is coloured by modeled annual operating " +
+               "cost for its dedicated cycling infrastructure: route metres " +
+               "multiplied by the reviewed Edmonton operating rate of $20.278 " +
+               "per metre per year ($178/km maintenance plus $20,100/km snow " +
+               "and ice control). Operating only: no capital replacement, and " +
+               "the snow-clearing rate comes from a broader active-pathway " +
+               "network than this dedicated bike-route map. Colour is square-root " +
+               "scaled. Grey = set-aside natural/undeveloped land or no dedicated " +
+               "bike-route length.",
         absoluteFmt: v => (v / 1000).toFixed(v < 10000 ? 1 : 0) + " dedicated bike-route km",
         areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " dedicated bike-route km / km²",
         personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " dedicated bike-route km / 1,000 residents",
+        costFmt: v => "$" + Math.round(v).toLocaleString() + " modeled bike-route operating cost / yr",
       },
       parking: {
         areaCol: "parking_stalls_per_acre",
         totalCol: "parking_stalls_total",
         personCol: "parking_stalls_per_1000_people",
         areaScale: ACRE_TO_KM2,
-        label: "Parking stalls",
+        costCol: "cost_parking_ops_annual",
+        label: "City-managed parking",
         absoluteTitle: "Edmonton: City-Managed Parking Stalls",
         areaTitle: "Edmonton: City-Managed Parking Stalls per km²",
         personTitle: "Edmonton: City-Managed Parking Stalls per 1,000 Residents",
+        costTitle: "Edmonton: Modeled City-Managed Parking Operating Cost",
         absoluteLegend: "City-managed public parking stalls (sqrt colour)",
         areaLegend: "City-managed public parking stalls per km² (sqrt colour)",
         personLegend: "City-managed public parking stalls per 1,000 residents (sqrt colour)",
+        costLegend: "Modeled annual City-managed parking operating cost (sqrt colour)",
         maxDp: 1,
         transform: "sqrt",
         absoluteBlurb: "Each neighbourhood is coloured by total City-managed public " +
@@ -993,12 +1022,23 @@
                "the individual parkades and surface lots. Colour is square-root " +
                "scaled. Grey = set-aside natural/undeveloped land, missing/zero " +
                "population, or no City-managed parking supply.",
+        costBlurb: "Each neighbourhood is coloured by a modeled share of Edmonton's " +
+               "2025 Parking Operations gross operating budget ($7.067M/year), " +
+               "allocated by each neighbourhood's share of deduplicated City-managed " +
+               "parkade and surface-lot stalls. This is indicative, not facility-" +
+               "level accounting: the budget program is broader than this off-street " +
+               "facility feed and likely includes curbside/EPark operations. It does " +
+               "not include private parking costs or capital replacement. Dots mark " +
+               "the individual City-managed facilities. Colour is square-root scaled. " +
+               "Grey = set-aside natural/undeveloped land or no City-managed " +
+               "parking supply.",
         absoluteFmt: v => v.toFixed(0) + " City-managed parking stalls",
         areaFmt: v => {
           const x = v * ACRE_TO_KM2;
           return x.toFixed(x < 10 ? 1 : 0) + " City-managed parking stalls / km²";
         },
         personFmt: v => v.toFixed(v < 10 ? 1 : 0) + " City-managed parking stalls / 1,000 residents",
+        costFmt: v => "$" + Math.round(v).toLocaleString() + " modeled City-managed parking operating cost / yr",
       },
     };
     const transportSupportsPerson = metric => {
@@ -1006,19 +1046,26 @@
       return !!(mode && state.hasTransportPopulation &&
         state.data && state.data.features.some(f => f.properties[mode.personCol] != null));
     };
+    const transportSupportsCost = metric => {
+      const mode = TRANSPORT[metric];
+      return !!(mode && mode.costCol &&
+        state.data && state.data.features.some(f => f.properties[mode.costCol] != null));
+    };
     function transportMode() {
       const base = TRANSPORT[state.transportMetric];
       const perPerson = state.transportDenom === "person" && transportSupportsPerson(state.transportMetric);
+      const cost = state.transportDenom === "cost" && transportSupportsCost(state.transportMetric);
       const absolute = state.transportDenom === "absolute";
       return {
         ...base,
-        col: perPerson ? base.personCol : (absolute ? base.totalCol : base.areaCol),
-        title: perPerson ? base.personTitle : (absolute ? base.absoluteTitle : base.areaTitle),
-        legend: perPerson ? base.personLegend : (absolute ? base.absoluteLegend : base.areaLegend),
-        blurb: perPerson ? base.personBlurb : (absolute ? base.absoluteBlurb : base.areaBlurb),
-        fmt: perPerson ? base.personFmt : (absolute ? base.absoluteFmt : base.areaFmt),
+        col: cost ? base.costCol : (perPerson ? base.personCol : (absolute ? base.totalCol : base.areaCol)),
+        title: cost ? base.costTitle : (perPerson ? base.personTitle : (absolute ? base.absoluteTitle : base.areaTitle)),
+        legend: cost ? base.costLegend : (perPerson ? base.personLegend : (absolute ? base.absoluteLegend : base.areaLegend)),
+        blurb: cost ? base.costBlurb : (perPerson ? base.personBlurb : (absolute ? base.absoluteBlurb : base.areaBlurb)),
+        fmt: cost ? base.costFmt : (perPerson ? base.personFmt : (absolute ? base.absoluteFmt : base.areaFmt)),
         perPerson,
         absolute,
+        cost,
       };
     }
     function applyTransportDerivedFields() {
@@ -1664,8 +1711,8 @@
                     // rest of the layers panel.
                     amenity: { lrt: false, school: false },
                     ratioDenom: "roads", // Ratio-view denominator (RATIO_DENOMS); persists like denom
-                    transportMetric: "roads", // Transportation-view metric: roads | dedicated bike routes | City-managed parking stalls
-                    transportDenom: "area", // Transportation denominator: per km² by default; per-person only when Census population + totals ship
+                    transportMetric: "roads", // Transportation-view metric: roads | dedicated bike routes | City-managed parking
+                    transportDenom: "area", // Transportation denominator: per km² by default; absolute, per-person and operating-cost modes are available when fields ship
                     devMetric: "units", // Development-view sub-metric: units | permits per acre
                     devWindow: "long", // Development-view activity window: 3yr (recent) | 5yr | long (2009–2025, the default)
                     devGrid: true, // Development-view 100 m detail grid (the default; off = the hood choropleth)
@@ -2141,7 +2188,7 @@
         .map(p => p[col])
         .sort((a, b) => a - b);
       const svc = Object.values(SERVICES).find(s => s.plane && s.plane.col === col);
-      const transport = Object.values(TRANSPORT).find(t => t.areaCol === col || t.personCol === col);
+      const transport = Object.values(TRANSPORT).find(t => t.areaCol === col || t.personCol === col || t.costCol === col);
       const q = quantile(vals, 0.975);
       const maxPositive = Math.max(0, ...vals.filter(v => v > 0));
       return (_svcScales[col] = {
@@ -5256,7 +5303,12 @@
               `${p.parking_parkade_stalls || 0} parkade stalls, ${p.parking_surface_lot_stalls || 0} surface-lot stalls</span>`);
           rows.push(`<span class="muted">City-owned/leased public parkades and surface lots only — not all parking in Edmonton</span>`);
         }
-        if (mode.perPerson)
+        if (mode.cost) {
+          if (state.transportMetric === "parking")
+            rows.push(`<span class="muted">modeled operating allocation from Edmonton Open Budget Parking Operations; broader than facility-level parkade/surface-lot O&M</span>`);
+          else
+            rows.push(`<span class="muted">modeled annual operating cost only — maintenance/snow, no capital replacement</span>`);
+        } else if (mode.perPerson)
           rows.push(`<span class="muted">population denominator: City of Edmonton Neighbourhood Profiles / 2021 Census</span>`);
         else if (mode.absolute)
           rows.push(`<span class="muted">absolute neighbourhood total, not normalized by land area or population</span>`);
@@ -6170,10 +6222,12 @@
           document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "transportation") {
         const mode = transportMode();
-        const clamp = svcScale(mode.col).clamp * (mode.perPerson || mode.absolute ? 1 : (mode.areaScale || 1));
+        const clamp = svcScale(mode.col).clamp * (mode.perPerson || mode.absolute || mode.cost ? 1 : (mode.areaScale || 1));
         document.getElementById("legend-label").textContent = mode.legend;
-        document.getElementById("legend-min").textContent = "0";
-        document.getElementById("legend-max").textContent = clamp.toFixed(mode.maxDp) + "+";
+        document.getElementById("legend-min").textContent = mode.cost ? "$0" : "0";
+        document.getElementById("legend-max").textContent = mode.cost
+          ? "$" + Math.round(clamp).toLocaleString() + "+"
+          : clamp.toFixed(mode.maxDp) + "+";
         label.textContent = state.transportMetric === "roads"
           ? "Arterial — shared infrastructure"
           : "Set aside — natural / undeveloped land";
@@ -6352,15 +6406,19 @@
 
     function syncTransportControls() {
       const canPerson = transportSupportsPerson(state.transportMetric);
+      const canCost = transportSupportsCost(state.transportMetric);
       if (!canPerson && state.transportDenom === "person") state.transportDenom = "area";
+      if (!canCost && state.transportDenom === "cost") state.transportDenom = "area";
       document.querySelectorAll("#transport button").forEach(b =>
         b.classList.toggle("active", b.dataset.transport === state.transportMetric));
       document.getElementById("transport-denom-hd").style.display =
-        state.view === "transportation" && canPerson ? "block" : "none";
+        state.view === "transportation" ? "block" : "none";
       document.getElementById("transport-denom").style.display =
-        state.view === "transportation" && canPerson ? "flex" : "none";
+        state.view === "transportation" ? "flex" : "none";
       document.querySelector('#transport-denom button[data-transport-denom="person"]').style.display =
         canPerson ? "" : "none";
+      document.querySelector('#transport-denom button[data-transport-denom="cost"]').style.display =
+        canCost ? "" : "none";
       document.querySelectorAll("#transport-denom button").forEach(b =>
         b.classList.toggle("active", b.dataset.transportDenom === state.transportDenom));
     }
@@ -6382,8 +6440,9 @@
       refreshTransportChrome();
     }
     function applyTransportDenom(denom) {
-      if (denom === state.transportDenom || !["absolute", "area", "person"].includes(denom)) return;
+      if (denom === state.transportDenom || !["absolute", "area", "person", "cost"].includes(denom)) return;
       if (denom === "person" && !transportSupportsPerson(state.transportMetric)) return;
+      if (denom === "cost" && !transportSupportsCost(state.transportMetric)) return;
       state.transportDenom = denom;
       if (state.view !== "transportation") { syncTransportControls(); return; }
       refreshTransportChrome();

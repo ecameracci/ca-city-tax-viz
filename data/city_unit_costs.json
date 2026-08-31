@@ -88,8 +88,34 @@
     "not_sidewalks": "Sidewalks are a separate, non-overlapping category (~5,776 km, ~$5.9M/yr ops) and are NOT in this metric or in the 1,500 km snow denominator."
   },
 
+  "parking_ops": {
+    "operating_budget_gross_annual": 7067385,
+    "units": "dollars per year (2025 Tax Supported operating budget, gross positive expense rows)",
+    "applies_to": "Allocated across the deduplicated City-managed parking stalls in tsq5-xp73 for the Transportation view's City-managed parking operating-cost mode.",
+    "source": {
+      "document": "City of Edmonton Open Budget — operating_budget.csv",
+      "url": "https://budget.edmonton.ca/api/operating_budget.csv",
+      "retrieved": "2026-08-31",
+      "filter": "budget_year=2025; fund_type=Tax Supported; program='OPS/PARS - Parking Operations'; account_type=Expenses; sum only positive budget rows",
+      "positive_expense_rows": {
+        "External Services": 331469,
+        "Fleet Services": 87985,
+        "Intra-municipal Charges": 607222,
+        "Materials, Goods and Supplies": 330222,
+        "Transfer to Reserves": 370000,
+        "Utilities & Other Charges": 5340487
+      },
+      "negative_recovery_row_excluded": {
+        "Intra-municipal Recoveries": -2213560
+      },
+      "net_expense_rows_if_recoveries_included": 4853825
+    },
+    "derivation": "$331,469 + $87,985 + $607,222 + $330,222 + $370,000 + $5,340,487 = $7,067,385 gross annual operating expenses. The web layer allocates this budget by each neighbourhood's share of deduplicated City-managed parking stalls.",
+    "caveat": "OPERATING ONLY and modeled as a stall-share allocation. The Parking Operations program is broader than the Parkades and Surface Lots inventory, likely including curbside/EPark operations, while the spatial denominator includes only City-owned/leased parkade and surface-lot stalls from tsq5-xp73. Treat as an indicative City-managed parking operating allocation, not audited facility-level spend and not private parking cost. Do not sum with lifecycle road costs."
+  },
+
   "bikeway_capital": {
-    "_status": "⚠️ PARTIAL INPUT — NOT A RATE, NOT CONSUMED BY ANYTHING. This is the capital half of the still-open bikeway-lifecycle item, recorded so the sourcing is never re-hunted. It is $/km of ASSET VALUE, not $/m/yr. It CANNOT be turned into a lifecycle rate until a SERVICE LIFE exists, and no Edmonton service life for bikeways or shared pathways is published (searched 2026-08-04 — see life_not_published). load_unit_costs reads only roadway_om_renewal / fire_response / roadway_ops / bikeway_ops / transit_ets, so this block is inert by construction.",
+    "_status": "⚠️ PARTIAL INPUT — NOT A RATE, NOT CONSUMED BY ANYTHING. This is the capital half of the still-open bikeway-lifecycle item, recorded so the sourcing is never re-hunted. It is $/km of ASSET VALUE, not $/m/yr. It CANNOT be turned into a lifecycle rate until a SERVICE LIFE exists, and no Edmonton service life for bikeways or shared pathways is published (searched 2026-08-04 — see life_not_published). load_unit_costs reads roadway_om_renewal / fire_response / roadway_ops / bikeway_ops / transit_ets / parking_ops; this capital-only block is still inert by construction.",
     "value": 452065,
     "units": "dollars per kilometre of bike route, CAPITAL CONSTRUCTION ONLY (blended citywide)",
     "blended_unit_cost_by_area_per_km": {

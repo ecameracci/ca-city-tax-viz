@@ -149,6 +149,7 @@ def load_unit_costs(path: str | Path) -> dict[str, float]:
         road_ops_dollars_per_m   $/road-metre/yr    (maintenance + snow, NO capital)
         bike_ops_dollars_per_m   $/bikeway-metre/yr (maintenance + snow, NO capital)
         transit_budget_annual    ETS bus+LRT gross operating budget, $/yr
+        parking_budget_annual    Parking Operations gross operating budget, $/yr
 
     ⚠️ The two road numbers are DIFFERENT BASES, not a duplicate — $50/m/yr
     lifecycle vs $4.635/m/yr operating, ~10.8x apart on the same metres. They
@@ -172,6 +173,7 @@ def load_unit_costs(path: str | Path) -> dict[str, float]:
         ("road_ops_dollars_per_m", "roadway_ops", "value"),
         ("bike_ops_dollars_per_m", "bikeway_ops", "value"),
         ("transit_budget_annual", "transit_ets", "operating_budget_gross_annual"),
+        ("parking_budget_annual", "parking_ops", "operating_budget_gross_annual"),
     ):
         if block in data:
             # Present-but-malformed is a hand-edit error, not an absent key —
@@ -187,7 +189,7 @@ def load_unit_costs(path: str | Path) -> dict[str, float]:
         if not isinstance(val, (int, float)) or val <= 0:
             raise ValueError(f"{path}: {name} must be a positive number, got {val!r}")
     for key in ("road_ops_dollars_per_m", "bike_ops_dollars_per_m",
-                "transit_budget_annual"):
+                "transit_budget_annual", "parking_budget_annual"):
         if key in costs and costs[key] <= 0:
             raise ValueError(f"{path}: {key} must be positive, got {costs[key]!r}")
     return costs
@@ -807,12 +809,32 @@ def join_and_calculate(
     if unit_costs is not None:
         transport_terms: dict[str, pd.Series] = {}
         if roads is not None and "road_ops_dollars_per_m" in unit_costs:
+            transport_terms["cost_roads_ops_annual"] = (
+                joined["road_m_total"] * unit_costs["road_ops_dollars_per_m"]
+            )
             transport_terms["cost_roads_ops_per_acre"] = (
                 joined["road_m_per_acre"] * unit_costs["road_ops_dollars_per_m"]
             )
         if bike is not None and "bike_ops_dollars_per_m" in unit_costs:
+            transport_terms["cost_bike_ops_annual"] = (
+                joined["bike_m_total"] * unit_costs["bike_ops_dollars_per_m"]
+            )
             transport_terms["cost_bike_ops_per_acre"] = (
                 joined["bike_m_per_acre"] * unit_costs["bike_ops_dollars_per_m"]
+            )
+        if parking is not None and "parking_budget_annual" in unit_costs:
+            citywide_stalls = float(parking["parking_stalls_total"].sum())
+            if citywide_stalls <= 0:
+                raise ValueError(
+                    "Citywide City-managed parking stalls is not positive "
+                    f"({citywide_stalls}) — cannot allocate Parking Operations budget"
+                )
+            parking_cost_per_stall = unit_costs["parking_budget_annual"] / citywide_stalls
+            transport_terms["cost_parking_ops_annual"] = (
+                joined["parking_stalls_total"] * parking_cost_per_stall
+            )
+            transport_terms["cost_parking_ops_per_acre"] = (
+                joined["parking_stalls_per_acre"] * parking_cost_per_stall
             )
         if transit is not None and "transit_budget_annual" in unit_costs:
             # Denominator is the transit frame's OWN citywide total (pre-join),
@@ -1068,9 +1090,11 @@ def join_and_calculate(
 # not ridership; the client must label all of them as such). svc_cost_per_acre
 # is the V2 composite — MODELED road $ + allocated fire $, roads + fire only,
 # never "total city cost" (SPEC_utilities decision 3; no display layer yet —
-# placement is an open call). The cost_*_ops_per_acre trio and
-# transport_cost_ops_per_acre are the Transportation lens Stage 2 composite on a
-# strictly OPERATING basis (maintenance + snow, NO capital replacement) —
+# placement is an open call). The cost_*_ops_per_acre/annual transportation
+# operating columns are strictly OPERATING basis (maintenance + snow for
+# road/bike; modeled budget allocation for parking, NO capital replacement).
+# transport_cost_ops_per_acre remains the older road+bike+transit Services-side
+# operating composite and intentionally excludes parking.
 # ⚠️ cost_roads_ops_per_acre and the roads term inside svc_cost_per_acre are the
 # SAME METRES ON DIFFERENT BASES, ~10.8x apart; the client must never sum or
 # compare them, which is what the _ops suffix exists to signal. new_units_per_acre
@@ -1102,11 +1126,13 @@ SLIM_COLUMNS = [
     "parking_facilities_total", "parking_parkade_facilities", "parking_surface_lot_facilities",
     "parking_stalls_total", "parking_parkade_stalls", "parking_surface_lot_stalls",
     "parking_stalls_per_acre", "parking_stalls_per_1000_people",
+    "cost_parking_ops_annual", "cost_parking_ops_per_acre",
     "storm_charge_per_acre",
     "fire_events_per_acre", "transit_dep_per_acre",
     "water_charge_per_acre", "water_fixed_per_acre",
     "svc_cost_per_acre",
-    "cost_roads_ops_per_acre", "cost_bike_ops_per_acre",
+    "cost_roads_ops_annual", "cost_roads_ops_per_acre",
+    "cost_bike_ops_annual", "cost_bike_ops_per_acre",
     "cost_transit_ops_per_acre", "transport_cost_ops_per_acre",
     "new_units_per_acre", "new_permits_per_acre",
     "new_dwelling_units", "new_dwelling_permits",

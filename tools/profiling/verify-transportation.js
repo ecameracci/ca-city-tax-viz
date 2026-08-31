@@ -65,8 +65,8 @@ const [url] = process.argv.slice(2);
   check('enters the Transportation view', roads.view === 'transportation', roads.view);
   check('defaults to road length density', roads.metric === 'roads', roads.metric);
   check('shows the Transportation controls', roads.panelShown && roads.transportShown);
-  check('shows per-person denominator only when supported by shipped Census + total-length fields',
-    roads.transportDenomShown && roads.visibleTransportDenom.join('|') === 'Absolute|Per km²|Per person',
+  check('shows Transportation denominator modes including operating cost',
+    roads.transportDenomShown && roads.visibleTransportDenom.join('|') === 'Absolute|Per km²|Per person|Operating cost',
     roads.visibleTransportDenom.join('|'));
   check('defaults Transportation denominator to per km²', roads.activeTransportDenom.join('|') === 'area', roads.activeTransportDenom.join('|'));
 
@@ -88,8 +88,8 @@ const [url] = process.argv.slice(2);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
   check('hides Money/Services/Prism controls', !roads.moneyPodShown && !roads.servicesShown && !roads.prismRowShown);
-  check('offers Road km, Bike-route km, and City-managed stalls toggles',
-    roads.visibleTransport.join('|') === 'Road km|Bike-route km|City-managed stalls',
+  check('offers Road km, Bike-route km, and City-managed parking toggles',
+    roads.visibleTransport.join('|') === 'Road km|Bike-route km|City-managed parking',
     roads.visibleTransport.join('|'));
   check('only Road km is active on entry', roads.activeTransport.join('|') === 'roads', roads.activeTransport.join('|'));
   check('road title names road kilometres per km²', /Road Kilometres per km²/i.test(roads.title), roads.title);
@@ -143,6 +143,24 @@ const [url] = process.argv.slice(2);
   check('road per-resident tooltip cites Census denominator and avoids area/money units',
     /road km \/ 1,000 residents/.test(roadPersonMath.tooltip) && /2021 Census/i.test(roadPersonMath.tooltip) && !/\$|acre/.test(roadPersonMath.primary),
     roadPersonMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
+
+  await click('#transport-denom button[data-transport-denom="cost"]');
+  await page.waitForTimeout(1000);
+  const roadsCost = await chrome();
+  check('switches road Transportation denominator to operating cost',
+    /Modeled Road Operating Cost/i.test(roadsCost.title) && roadsCost.activeTransportDenom.join('|') === 'cost' && /annual road operating cost/i.test(roadsCost.legendLabel),
+    `${roadsCost.title} / ${roadsCost.legendLabel} / ${roadsCost.activeTransportDenom.join('|')}`);
+  const roadCostMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('road operating-cost tooltip names operating-only basis and no capital',
+    /\$/.test(roadCostMath.primary) && /road operating cost \/ yr/.test(roadCostMath.primary) && /operating cost only/i.test(roadCostMath.tooltip) && /no capital replacement/i.test(roadCostMath.tooltip),
+    roadCostMath.tooltip);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
 
@@ -215,11 +233,29 @@ const [url] = process.argv.slice(2);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
 
+  await click('#transport-denom button[data-transport-denom="cost"]');
+  await page.waitForTimeout(1000);
+  const bikeCost = await chrome();
+  check('switches bike Transportation denominator to operating cost',
+    /Modeled Bike-Route Operating Cost/i.test(bikeCost.title) && bikeCost.activeTransportDenom.join('|') === 'cost' && /bike-route operating cost/i.test(bikeCost.legendLabel),
+    `${bikeCost.title} / ${bikeCost.legendLabel} / ${bikeCost.activeTransportDenom.join('|')}`);
+  const bikeCostMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('bike operating-cost tooltip names operating-only basis and no capital',
+    /\$/.test(bikeCostMath.primary) && /bike-route operating cost \/ yr/.test(bikeCostMath.primary) && /operating cost only/i.test(bikeCostMath.tooltip) && /no capital replacement/i.test(bikeCostMath.tooltip),
+    bikeCostMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
+
   await click('#transport button[data-transport="parking"]');
   await page.waitForTimeout(3000); // parking facility lazy-fetch + rebuild
   const parking = await chrome();
   check('switches to City-managed parking supply', parking.metric === 'parking', parking.metric);
-  check('only Parking stalls is active', parking.activeTransport.join('|') === 'parking', parking.activeTransport.join('|'));
+  check('only City-managed parking is active', parking.activeTransport.join('|') === 'parking', parking.activeTransport.join('|'));
   check('parking title names City-managed parking stalls per km²', /City-Managed Parking Stalls per km²/i.test(parking.title), parking.title);
   check('parking copy says this is not all parking in Edmonton', /not all parking in Edmonton/i.test(parking.blurb), parking.blurb.slice(0, 180));
   check('parking legend is stalls per km² and sqrt-labelled', /parking stalls per km² \(sqrt colour\)/i.test(parking.legendLabel), parking.legendLabel);
@@ -288,6 +324,24 @@ const [url] = process.argv.slice(2);
   check('parking per-resident tooltip cites Census denominator and avoids area/money units',
     /City-managed parking stalls \/ 1,000 residents/.test(parkingPersonMath.tooltip) && /2021 Census/i.test(parkingPersonMath.tooltip) && !/\$|acre/.test(parkingPersonMath.primary),
     parkingPersonMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
+
+  await click('#transport-denom button[data-transport-denom="cost"]');
+  await page.waitForTimeout(1000);
+  const parkingCost = await chrome();
+  check('switches parking Transportation denominator to operating cost',
+    /City-Managed Parking Operating Cost/i.test(parkingCost.title) && parkingCost.activeTransportDenom.join('|') === 'cost' && /parking operating cost/i.test(parkingCost.legendLabel),
+    `${parkingCost.title} / ${parkingCost.legendLabel} / ${parkingCost.activeTransportDenom.join('|')}`);
+  const parkingCostMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties.parking_stalls_total > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('parking operating-cost tooltip names Open Budget allocation and program caveat',
+    /\$/.test(parkingCostMath.primary) && /parking operating cost \/ yr/.test(parkingCostMath.primary) && /Open Budget Parking Operations/i.test(parkingCostMath.tooltip) && /broader than facility-level/i.test(parkingCostMath.tooltip),
+    parkingCostMath.tooltip);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
 

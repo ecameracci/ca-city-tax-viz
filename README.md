@@ -32,7 +32,7 @@ with a toggleable denominator: **ground acres** (boundary area — robust to rec
 
 The **cost side** layers service supply and modeled service cost per acre: road network supply, a bylaw-native stormwater charge model, fire-rescue service demand, and a per-connection water/sanitary model — each validated against published figures where possible (`docs/FINDINGS_utility_validation.md`). A top-level **Cost** metric summarizes the modeled roads + fire cost per acre where that data is available. Modeled figures are labeled *modeled, not billed*.
 
-A separate **Transportation** view compares measured road length density, dedicated bike-route length density, and **City-managed public parking supply** from parkades and surface lots. The denominator can be absolute neighbourhood supply, `km / km²` for roads/bike and stalls per `km²` for parking, or — when the generated web data includes totals and 2021 Census population — per-1,000-resident metrics. Road/bike length is centreline / route length, not vehicle lane-kilometres, and the parking feed is not all parking in Edmonton.
+A separate **Transportation** view compares measured road length density, dedicated bike-route length density, and **City-managed public parking supply** from parkades and surface lots. The mode can be absolute neighbourhood supply, `km / km²` for roads/bike and stalls per `km²` for parking, per-1,000-resident metrics when 2021 Census population ships, or **Operating cost**: modeled annual City operating cost for the selected road, bike, or parking layer. Road/bike length is centreline / route length, not vehicle lane-kilometres; parking is City-managed only, not all parking in Edmonton; and operating-cost figures are not lifecycle/full-city costs.
 
 **Data sources (all open data):**
 - [Property Assessment Data](https://data.edmonton.ca/City-Administration/Property-Assessment-Data-Current-Calendar-Year-/q7d6-ambg) (~440,000 records, refreshed weekly, annual roll)
@@ -94,8 +94,9 @@ stormwater charge** per acre, **fire-rescue service demand** per acre, and a
 modeled roads + fire cost per acre; and a Ratio view shows **revenue per road
 metre** or **revenue as a multiple of modeled roads + fire service cost**. A
 Transportation view compares road kilometres, dedicated bike-route kilometres,
-and City-managed public parking stalls by area, with a Census-backed
-per-resident denominator when the needed fields are present. A Uses view maps the zoning bylaw's land-use
+and City-managed parking by absolute supply, area, Census-backed per-resident
+denominator, or modeled annual **Operating cost** for the selected transportation
+asset/program when the needed fields are present. A Uses view maps the zoning bylaw's land-use
 categories, and a Glass view renders the metric in **100 m grid cells** (the
 Urban3-style detail level). Both the Money and Glass views toggle between
 ground acres and **parcel (lot) acres** as the denominator. A weekly GitHub
