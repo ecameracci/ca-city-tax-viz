@@ -123,14 +123,18 @@ Revenue alone is half the fiscal story. Each service layer is a *supply* or
   below are recovered from utility ratepayers, and dividing tax revenue by
   them would compare unrelated money flows. (`docs/SPEC_services.md`,
   `docs/SPEC_utilities.md` "Money-flow honesty")
-- **Transportation** — a separate view compares measured road kilometres with
-  dedicated bike-route kilometres. The default denominator is land area
-  (`km / km²`, derived from the pipeline's metres-per-acre fields). When the
-  web export includes both total length and a real person denominator, the app
-  also offers `km / 1,000 residents`; that denominator is **2021 Federal Census
+- **Transportation** — a separate view compares measured road kilometres,
+  dedicated bike-route kilometres, and **City-managed public parking supply**
+  from parkades and surface lots (`tsq5-xp73`). The default denominator is land
+  area (`km / km²` for roads/bike; stalls / km² for parking). When the web
+  export includes totals and a real person denominator, the app also offers
+  per-1,000-resident readouts; that denominator is **2021 Federal Census
   population** from the City of Edmonton Neighbourhood Profiles / Open Data
-  source (`eg3i-f4bj`, also surfaced in the City's Tableau workbook). This is
-  road centreline or route length, not vehicle lane-kilometres.
+  source (`eg3i-f4bj`, also surfaced in the City's Tableau workbook). Road/bike
+  length is centreline or route length, not vehicle lane-kilometres. Parking is
+  city-owned/leased public supply only, not all parking in Edmonton; duplicate
+  rate/use rows are preserved for facility popups but capacity is counted once
+  per physical facility.
 - **Stormwater (modeled)** — EPCOR's own bylaw formula, area × intensity ×
   runoff coefficient, applied to every roll parcel at 2025 rates. Citywide
   $240.4M as modeled — deliberately reported alongside $190.5M when land
@@ -181,6 +185,7 @@ All open data, no GIS desktop software, Python only.
 | Tax rates | `pwis-wc4c` | municipal mill rates by class, 2014→ |
 | Zoning Bylaw geometry | `fixa-tstc` | land-use categories, set-aside layer |
 | Road network | `9j8t-zm52` | ~54k centreline segments |
+| Parkades and Surface Lots | `tsq5-xp73` | City-managed public parking facilities; rate/use rows deduplicated for capacity |
 | 2021 Federal Census population | `eg3i-f4bj` | City of Edmonton Neighbourhood Profiles population denominator |
 | Fire response events / stations | `7hsn-idqi` / `b4y7-zhnz` | 2023–2025 |
 | Utility tariffs | EPCOR bylaw schedules | year-pinned JSON in `data/` |

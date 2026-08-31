@@ -1992,13 +1992,49 @@ the filed base for the right year and ~10% off for a neighbouring one.
   Schedule MR's headers stop matching the expected substrings, rather than
   reading a shifted column blind.
 
-## 17. 2021 Federal Census population (Transportation denominator, added 2026-08-31)
+## 17. Parkades and Surface Lots (Transportation lens, added 2026-08-31)
+
+**Source:** Edmonton Open Data dataset `tsq5-xp73` — "Parkades and Surface Lots".
+Downloaded by `scripts/download_data.py` as `data/raw/parking_facilities.csv`
+with a deliberately small `$limit=100` plus the standard server `count(*)`
+cross-check. First pull: **9 source rate/use rows**, matching server count.
+
+**Scope guard:** this is **City-managed public parking supply**, not all parking
+in Edmonton. The feed contains public parkades and surface lots the City owns or
+leases. Private parkades, private surface lots, curbside stalls not represented
+in this feed, and informal/off-street parking are outside scope. UI wording
+should stay narrow: "City-managed parking", "City-managed parking facilities",
+or "City-managed parking supply".
+
+**Key columns:** `parking_facilities`, `owned_leased`, `type`, `total_stalls`,
+`use`, `billing_type`, `regular_rate`, `_5_gst`, `monthly_rate`,
+`effective_year`, `location_1`.
+
+**Current shape:** 7 physical facilities / **2,841 stalls** from 9 rate/use rows:
+7 `Parkade` rows and 2 `Surface Lot` rows. `Century Place Parkade` and
+`City Hall Parkade` each appear twice for distinct rate/use options.
+
+**Pipeline handling:** `src/load_parking.py` parses the CSV location string,
+spatially assigns facilities to neighbourhoods, and deduplicates capacity by
+physical facility key (`parking_facilities` + rounded coordinate). Duplicate
+rate/use rows are preserved in `web/data/parking_facilities.json` as popup
+options, but stalls are counted once per physical facility in neighbourhood
+aggregates. Joined columns include:
+
+- `parking_facilities_total`, `parking_parkade_facilities`,
+  `parking_surface_lot_facilities`
+- `parking_stalls_total`, `parking_parkade_stalls`,
+  `parking_surface_lot_stalls`
+- `parking_stalls_per_acre`, plus `parking_stalls_per_1000_people` when the
+  2021 Census population denominator is present.
+
+## 18. 2021 Federal Census population (Transportation denominator, added 2026-08-31)
 
 **Source:** Edmonton Open Data dataset `eg3i-f4bj` — "2021 Federal Census: Population". This is the City of Edmonton Neighbourhood Profiles / Federal Census 2021 population source; the same population family is surfaced in the City's Tableau Public Neighbourhood Profiles workbook. That Tableau page has an interactive neighbourhood dropdown: its default selected neighbourhood is `ABBOTTSFIELD`, and other neighbourhoods can be selected in the workbook UI. The pipeline downloads the Socrata CSV (`data/raw/census_population_2021.csv`) because the static/simple Tableau crosstab CSV endpoint reflects the current/default workbook selection unless a workbook session/filter is driven interactively.
 
-**Use in this project:** denominator only. The Transportation view may show road kilometres or dedicated bike-route kilometres per 1,000 residents only when the web GeoJSON carries both:
+**Use in this project:** denominator only. The Transportation view may show road kilometres, dedicated bike-route kilometres, or City-managed parking stalls per 1,000 residents only when the web GeoJSON carries both:
 
-- measured total length (`road_m_total` or `bike_m_total`), and
+- measured total supply (`road_m_total`, `bike_m_total`, or `parking_stalls_total`), and
 - `census_population_2021` from this source.
 
 No population is estimated or interpolated. Neighbourhoods without a 2021 Census row stay missing for the per-resident mode; the app falls back to the area denominator (`km / km²`) where person denominators are unavailable.

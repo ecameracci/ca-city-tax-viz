@@ -3,8 +3,9 @@
 // The shipped data has road_m_per_acre and bike_m_per_acre length-density
 // columns, not vehicle lane counts or lane-kilometres. This check protects the
 // UI contract: a top-level Transportation tab compares road km/km² with
-// dedicated bike-route km/km², carries the caveat, toggles the matching network
-// overlay, and keeps the old Money controls out of the way.
+// dedicated bike-route km/km², City-managed parking stalls/km², carries the
+// caveats, toggles the matching context overlays, and keeps the old Money
+// controls out of the way.
 //   node tools/profiling/verify-transportation.js <url>     (from REPO ROOT)
 const { chromium } = require('playwright');
 const [url] = process.argv.slice(2);
@@ -69,7 +70,9 @@ const [url] = process.argv.slice(2);
     roads.visibleTransportDenom.join('|'));
   check('defaults Transportation denominator to per km²', roads.activeTransportDenom.join('|') === 'area', roads.activeTransportDenom.join('|'));
   check('hides Money/Services/Prism controls', !roads.moneyPodShown && !roads.servicesShown && !roads.prismRowShown);
-  check('offers Road km and Bike-route km toggles', roads.visibleTransport.join('|') === 'Road km|Bike-route km', roads.visibleTransport.join('|'));
+  check('offers Road km, Bike-route km, and Parking stalls toggles',
+    roads.visibleTransport.join('|') === 'Road km|Bike-route km|Parking stalls',
+    roads.visibleTransport.join('|'));
   check('only Road km is active on entry', roads.activeTransport.join('|') === 'roads', roads.activeTransport.join('|'));
   check('road title names road kilometres per km²', /Road Kilometres per km²/i.test(roads.title), roads.title);
   check('road copy explicitly says not lane-kilometres', /not vehicle lane-kilometres/i.test(roads.blurb), roads.blurb.slice(0, 120));
@@ -178,10 +181,70 @@ const [url] = process.argv.slice(2);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
 
+  await click('#transport button[data-transport="parking"]');
+  await page.waitForTimeout(3000); // parking facility lazy-fetch + rebuild
+  const parking = await chrome();
+  check('switches to City-managed parking supply', parking.metric === 'parking', parking.metric);
+  check('only Parking stalls is active', parking.activeTransport.join('|') === 'parking', parking.activeTransport.join('|'));
+  check('parking title names City-managed parking stalls per km²', /City-Managed Parking Stalls per km²/i.test(parking.title), parking.title);
+  check('parking copy says this is not all parking in Edmonton', /not all parking in Edmonton/i.test(parking.blurb), parking.blurb.slice(0, 180));
+  check('parking legend is stalls per km² and sqrt-labelled', /parking stalls per km² \(sqrt colour\)/i.test(parking.legendLabel), parking.legendLabel);
+  check('parking facility dot layer is present', parking.layers.includes('parking-facilities'), parking.layers.join('|'));
+  check('road/bike overlays are absent in parking mode', !parking.layers.includes('roads-ground') && !parking.layers.includes('bike-lines'), parking.layers.join('|'));
+  check('parking legend names parkade and surface-lot dots', /City-managed parkade/i.test(parking.cats) && /City-managed surface lot/i.test(parking.cats), parking.cats);
+
+  const parkingMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const vals = kept.map(f => f.properties[mode.col]).sort((a, b) => a - b);
+    const pos = (vals.length - 1) * 0.975, lo = Math.floor(pos);
+    const q = vals[lo] + (vals[Math.ceil(pos)] - vals[lo]) * (pos - lo);
+    const maxPos = Math.max(...vals.filter(v => v > 0));
+    const scale = svcScale(mode.col);
+    const mid = kept.find(f => f.properties.parking_stalls_total > 0) || kept[0];
+    const plane = overlay._deck.props.layers.find(l => l.id === 'transport-plane');
+    const expected = rampColorAt(Math.sqrt(Math.min(1, mid.properties[mode.col] / scale.clamp)));
+    const dots = overlay._deck.props.layers.find(l => l.id === 'parking-facilities').props.data;
+    const dot = dots.find(d => (d.rateRows || 0) > 1) || dots[0];
+    return {
+      sparseClampFallsBackToMaxPositive: q === 0 ? Math.abs(scale.clamp - maxPos) < 1e-9 : scale.clamp > 0,
+      planeFillOk: plane.props.getFillColor(mid).join() === expected.join(),
+      tooltip: tooltipFor({ object: mid }).html,
+      primary: primaryRow(mid.properties),
+      dotTip: tooltipFor({ object: dot }).html,
+    };
+  });
+  check('parking sparse scale has a positive clamp', parkingMath.sparseClampFallsBackToMaxPositive);
+  check('parking plane uses sqrt ramp colour', parkingMath.planeFillOk);
+  check('parking tooltip uses stalls/km² and scope caveat', /City-managed parking stalls \/ km²/.test(parkingMath.tooltip) && /not all parking in Edmonton/i.test(parkingMath.tooltip), parkingMath.tooltip);
+  check('parking panel-mode primary row uses stalls/km², not money units',
+    /City-managed parking stalls \/ km²/.test(parkingMath.primary) && !/\$|acre/.test(parkingMath.primary), parkingMath.primary);
+  check('parking facility dot tooltip preserves rate/use rows and counted-once note',
+    /stalls/.test(parkingMath.dotTip) && /public parking supply/i.test(parkingMath.dotTip) && /rate\/use rows preserved; stalls counted once/i.test(parkingMath.dotTip),
+    parkingMath.dotTip);
+
+  await click('#transport-denom button[data-transport-denom="person"]');
+  await page.waitForTimeout(1000);
+  const parkingPerson = await chrome();
+  check('switches parking Transportation denominator to residents',
+    /1,000 Residents/i.test(parkingPerson.title) && parkingPerson.activeTransportDenom.join('|') === 'person',
+    `${parkingPerson.title} / ${parkingPerson.activeTransportDenom.join('|')}`);
+  const parkingPersonMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties.parking_stalls_total > 0 && f.properties.census_population_2021 > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('parking per-resident tooltip cites Census denominator and avoids area/money units',
+    /City-managed parking stalls \/ 1,000 residents/.test(parkingPersonMath.tooltip) && /2021 Census/i.test(parkingPersonMath.tooltip) && !/\$|acre/.test(parkingPersonMath.primary),
+    parkingPersonMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
+
   await click('#transport button[data-transport="roads"]');
   await page.waitForTimeout(1500);
   const roundTrip = await chrome();
-  check('Road km toggle works after a bike round-trip', roundTrip.metric === 'roads' && roundTrip.layers.includes('roads-ground'), roundTrip.layers.join('|'));
+  check('Road km toggle works after a parking round-trip', roundTrip.metric === 'roads' && roundTrip.layers.includes('roads-ground'), roundTrip.layers.join('|'));
 
   console.log(fail ? `\n${fail} CHECK(S) FAILED` : '\nALL CHECKS PASSED');
   await browser.close();

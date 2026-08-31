@@ -11,6 +11,7 @@ Most inputs come from Edmonton's Socrata open-data portal:
   - zoning         fixa-tstc  (Zoning Bylaw Geographical Data)          -> GeoJSON
   - roads          9j8t-zm52  (Road Network centrelines)                -> GeoJSON
   - bike_routes    vd4b-a4iv  (Bike Routes: on- and off-road)           -> GeoJSON
+  - parking_facilities tsq5-xp73 (Parkades and Surface Lots)            -> CSV
   - property_info  dkk9-cj3x  (Property Info: lot size / zoning /
                                year built, current year)                -> CSV
   - fire_events    7hsn-idqi  (Fire Response, current + historical)     -> CSV
@@ -105,6 +106,16 @@ SOURCES = {
         "dest": RAW / "bike_routes.geojson",
         "limit": 20000,  # 10,417 segments as of 2026-08 (SPEC_services.md)
         "count_url": _count_url("vd4b-a4iv"),
+    },
+    "parking_facilities": {
+        # City-managed public parking supply (Transportation lens): public
+        # parkades and surface lots the City owns or leases. Tiny point/rate
+        # feed; load_parking deduplicates repeated rate/use rows before
+        # summing physical facility capacity.
+        "url": "https://data.edmonton.ca/resource/tsq5-xp73.csv?$limit=100",
+        "dest": RAW / "parking_facilities.csv",
+        "limit": 100,  # 9 rate/use rows as of 2026-08
+        "count_url": _count_url("tsq5-xp73"),
     },
     "property_info": {
         # Full-export endpoint, no $limit — only the server cross-check applies.

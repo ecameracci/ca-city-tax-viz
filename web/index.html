@@ -176,7 +176,7 @@
   <div id="views" class="panel">
     <button data-view="money" class="active" title="Revenue/value prisms — the money plane">Money</button>
     <button data-view="development" title="New dwelling units built per acre from issued building permits — where the city is actually growing; greenfield growth land is shown in full colour here">Development</button>
-    <button data-view="transportation" title="Road length density versus dedicated bike-route length density, expressed as km per km². The data does not include vehicle lane counts, so this is road kilometres, not lane-kilometres">Transportation</button>
+    <button data-view="transportation" title="Transportation supply: road length, dedicated bike-route length, and City-managed public parking stalls. Road and bike lengths are not lane-counted; parking is not all parking in Edmonton.">Transportation</button>
     <button data-view="services" title="City services on the ground — toggle each service on its own layer; roads coloured by metres per acre, stormwater by its modeled charge per acre">Services</button>
     <button data-view="ratio" title="Ghost prisms of revenue per road metre — or per fire event — over the neutral road network">Ratio</button>
     <button data-view="uses" title="Each neighbourhood's dominant zoned land use — what the land is designated for, not what it yields; optional prisms show each neighbourhood's residential share">Uses</button>
@@ -266,11 +266,12 @@
     <div id="transport">
       <button data-transport="roads" class="active" title="Collector + local road length density. Not lane-counted: the source has road centreline length, not vehicle lane counts.">Road km</button>
       <button data-transport="bike" title="Dedicated cycling-infrastructure route length. Streets merely signed as bike routes are excluded upstream; route length is not lane-counted.">Bike-route km</button>
+      <button data-transport="parking" title="City-managed public parking supply: parkades and surface lots the City owns or leases. Not all parking in Edmonton.">Parking stalls</button>
     </div>
     <span class="hd" id="transport-denom-hd">Denominator</span>
     <div id="transport-denom">
-      <button data-transport-denom="area" class="active" title="Show length density as kilometres per square kilometre — available in the current neighbourhood file.">Per km²</button>
-      <button data-transport-denom="person" title="Show kilometres per 1,000 residents using total road/bike length and 2021 Census population. Hidden until those fields are present in the neighbourhood file.">Per person</button>
+      <button data-transport-denom="area" class="active" title="Show supply density per square kilometre — length for roads/bike, stalls for City-managed parking.">Per km²</button>
+      <button data-transport-denom="person" title="Show supply per 1,000 residents using total road/bike length or parking stalls and 2021 Census population. Hidden until those fields are present in the neighbourhood file.">Per person</button>
     </div>
     <span class="hd" id="prism-hd">Money plane</span>
     <label id="prism-row" title="Prism opacity — how strongly the ratio prisms overlay the road network">
@@ -864,17 +865,19 @@
     };
 
     // --- transportation view -------------------------------------------------
-    // The shipped neighbourhood file has length DENSITY columns only:
-    // road_m_per_acre and bike_m_per_acre. It does NOT carry vehicle lane counts
-    // or lane-kilometres, so this view must say road km / km² and dedicated
-    // bike-route km / km² rather than "vehicle lane-km". The conversion is just
-    // metres per acre expressed in km per square kilometre.
+    // The shipped neighbourhood file has Transportation supply columns by
+    // neighbourhood. Roads/bike are LENGTH densities (not lane-counted);
+    // parking is City-managed public supply only, deduplicated to physical
+    // facilities before stalls are summed. Area-mode readouts express per-acre
+    // source columns as per-km² for the common denominator control.
     const M_PER_ACRE_TO_KM_PER_KM2 = 0.247105381;
+    const ACRE_TO_KM2 = 247.105381;
     const TRANSPORT = {
       roads: {
         areaCol: "road_m_per_acre",
         totalCol: "road_m_total",
         personCol: "road_km_per_1000_people",
+        areaScale: M_PER_ACRE_TO_KM_PER_KM2,
         label: "Road km",
         areaTitle: "Edmonton: Road Kilometres per km²",
         personTitle: "Edmonton: Road Kilometres per 1,000 Residents",
@@ -903,6 +906,7 @@
         areaCol: "bike_m_per_acre",
         totalCol: "bike_m_total",
         personCol: "bike_km_per_1000_people",
+        areaScale: M_PER_ACRE_TO_KM_PER_KM2,
         label: "Bike-route km",
         areaTitle: "Edmonton: Dedicated Bike-Route Kilometres per km²",
         personTitle: "Edmonton: Dedicated Bike-Route Kilometres per 1,000 Residents",
@@ -927,6 +931,40 @@
         areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " dedicated bike-route km / km²",
         personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " dedicated bike-route km / 1,000 residents",
+      },
+      parking: {
+        areaCol: "parking_stalls_per_acre",
+        totalCol: "parking_stalls_total",
+        personCol: "parking_stalls_per_1000_people",
+        areaScale: ACRE_TO_KM2,
+        label: "Parking stalls",
+        areaTitle: "Edmonton: City-Managed Parking Stalls per km²",
+        personTitle: "Edmonton: City-Managed Parking Stalls per 1,000 Residents",
+        areaLegend: "City-managed public parking stalls per km² (sqrt colour)",
+        personLegend: "City-managed public parking stalls per 1,000 residents (sqrt colour)",
+        maxDp: 1,
+        transform: "sqrt",
+        areaBlurb: "Each neighbourhood is coloured by City-managed public parking " +
+               "supply, expressed as parkade and surface-lot stalls per square " +
+               "kilometre. This is not all parking in Edmonton: it only includes " +
+               "the public facilities the City owns or leases in the Parkades and " +
+               "Surface Lots open-data feed. Dots mark the individual facilities; " +
+               "duplicate rate/use rows are combined so stall capacity is counted " +
+               "once per physical facility. Colour is square-root scaled. Grey = " +
+               "set-aside natural/undeveloped land or no City-managed parking supply.",
+        personBlurb: "Each neighbourhood is coloured by City-managed public parking " +
+               "stalls per 1,000 residents, using deduplicated facility capacity " +
+               "and 2021 Census population from the City of Edmonton Neighbourhood " +
+               "Profiles / Census source. This is not all parking in Edmonton: it " +
+               "only includes public facilities the City owns or leases. Dots mark " +
+               "the individual parkades and surface lots. Colour is square-root " +
+               "scaled. Grey = set-aside natural/undeveloped land, missing/zero " +
+               "population, or no City-managed parking supply.",
+        areaFmt: v => {
+          const x = v * ACRE_TO_KM2;
+          return x.toFixed(x < 10 ? 1 : 0) + " City-managed parking stalls / km²";
+        },
+        personFmt: v => v.toFixed(v < 10 ? 1 : 0) + " City-managed parking stalls / 1,000 residents",
       },
     };
     const transportSupportsPerson = metric => {
@@ -956,6 +994,8 @@
           p.road_km_per_1000_people = p.road_m_total / pop;
         if (pop > 0 && p.bike_m_total != null)
           p.bike_km_per_1000_people = p.bike_m_total / pop;
+        if (pop > 0 && p.parking_stalls_total != null)
+          p.parking_stalls_per_1000_people = p.parking_stalls_total / pop * 1000;
       }
     }
 
@@ -1588,7 +1628,7 @@
                     // rest of the layers panel.
                     amenity: { lrt: false, school: false },
                     ratioDenom: "roads", // Ratio-view denominator (RATIO_DENOMS); persists like denom
-                    transportMetric: "roads", // Transportation-view metric: road length density | dedicated bike-route length density
+                    transportMetric: "roads", // Transportation-view metric: roads | dedicated bike routes | City-managed parking stalls
                     transportDenom: "area", // Transportation denominator: per km² by default; per-person only when Census population + totals ship
                     devMetric: "units", // Development-view sub-metric: units | permits per acre
                     devWindow: "long", // Development-view activity window: 3yr (recent) | 5yr | long (2009–2025, the default)
@@ -1621,6 +1661,8 @@
     let lrtLinesFetch = null;        // in-flight fetch guard; missing file => no lines
     let bikeLinesData = null;        // lazy-fetched bike network (bike on)
     let bikeLinesFetch = null;       // in-flight fetch guard; missing file => no lines
+    let parkingData = null;          // lazy-fetched City-managed parking facility dots
+    let parkingFetch = null;         // in-flight fetch guard; missing file => no dots
     let temporalData = null;   // hood x year assessment history; missing file => lens absent
     let pinnedHood = null;     // hood name shown in the pinned history panel, or null
     let peekHood = null;       // hood shown in the touch-only peek card, or null
@@ -2063,9 +2105,16 @@
         .map(p => p[col])
         .sort((a, b) => a - b);
       const svc = Object.values(SERVICES).find(s => s.plane && s.plane.col === col);
+      const transport = Object.values(TRANSPORT).find(t => t.areaCol === col || t.personCol === col);
+      const q = quantile(vals, 0.975);
+      const maxPositive = Math.max(0, ...vals.filter(v => v > 0));
       return (_svcScales[col] = {
-        clamp: quantile(vals, 0.975),
-        transform: svc && svc.plane.transform,
+        // Sparse layers (City-managed parking is currently only a handful of
+        // facilities) can have a p97.5 clamp of 0 if zeros dominate. Fall back
+        // to the max positive value so zero hoods stay at 0 and facility hoods
+        // still get a usable colour scale.
+        clamp: Number.isFinite(q) && q > 0 ? q : (maxPositive || 1),
+        transform: (svc && svc.plane.transform) || (transport && transport.transform),
       });
     }
     // Clamped ramp position for a plane-service value under its transform.
@@ -2136,7 +2185,7 @@
           return rampColorAt(svcT(p[mode.col], mode.col));
         },
         pickable: false,
-        updateTriggers: { getFillColor: [state.ramp, state.transportMetric] },
+        updateTriggers: { getFillColor: [state.ramp, state.transportMetric, state.transportDenom] },
       });
     }
 
@@ -3438,6 +3487,42 @@
         .catch(() => {});
     }
 
+    // City-managed parking facility dots (Transportation lens): public
+    // parkades + surface lots the City owns or leases. Pickable so the point
+    // tooltip can show source rate/use options; capacity is already
+    // deduplicated to one physical facility upstream.
+    const PARKADE_COLOR = [245, 180, 80, 235];
+    const SURFACE_LOT_COLOR = [190, 140, 245, 235];
+    function parkingFacilitiesLayer() {
+      if (!parkingData) return [];
+      return [new deck.ScatterplotLayer({
+        id: "parking-facilities",
+        data: parkingData.facilities || [],
+        getPosition: d => [d.lon, d.lat],
+        getFillColor: d => d.type === "Surface Lot" ? SURFACE_LOT_COLOR : PARKADE_COLOR,
+        stroked: true,
+        getLineColor: [255, 255, 255, 230],
+        lineWidthMinPixels: 1.5,
+        radiusMinPixels: 4,
+        radiusMaxPixels: 18,
+        getRadius: d => 35 + Math.sqrt(Math.max(0, d.stalls || 0)) * 7,
+        pickable: true,
+        parameters: { depthTest: false },
+      })];
+    }
+    const PARKING_URL = "./data/parking_facilities.json";
+    function ensureParkingFacilities() {
+      if (parkingData) return;
+      parkingFetch ??= fetch(PARKING_URL)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          parkingData = d;
+          if (d && state.view === "transportation" && state.transportMetric === "parking")
+            overlay.setProps({ layers: buildLayers() });
+        })
+        .catch(() => {});
+    }
+
     // --- geographic reference layers (all views) -----------------------------
     // Tier 1 orientation furniture: the North Saskatchewan River and the
     // Anthony Henday ring road. There is no basemap (see "base map" above —
@@ -4064,13 +4149,14 @@
       }
 
       if (state.view === "transportation") {
-        // Flat neighbourhood plane by measured length density, with the matching
-        // network overlay for context. Roads are road-centreline kilometres, not
-        // vehicle lane-kilometres; bike is dedicated route kilometres, not a
-        // lane-counted measure.
+        // Flat neighbourhood plane by measured transportation supply, with the
+        // matching network/facility overlay for context. Roads are centreline
+        // kilometres, bike is dedicated route kilometres, and parking is the
+        // City-managed public supply only (parkades/surface lots).
         const layers = [transportPlaneLayer()];
         if (state.transportMetric === "roads") layers.push(...roadLayers(false));
-        else layers.push(...bikeLinesLayer());
+        else if (state.transportMetric === "bike") layers.push(...bikeLinesLayer());
+        else if (state.transportMetric === "parking") layers.push(...parkingFacilitiesLayer());
         return [...layers, hoodHoverLayer(), ...labelLayer()];
       }
 
@@ -5061,7 +5147,7 @@
       if (state.view === "transportation") {
         const mode = transportMode();
         return p[mode.col] == null
-          ? `<span class="muted">no transportation length data</span>`
+          ? `<span class="muted">no transportation data</span>`
           : mode.fmt(p[mode.col]);
       }
       if (state.view === "infill") {
@@ -5122,12 +5208,18 @@
       if (state.view === "transportation") {
         const mode = transportMode();
         if (p[mode.col] == null)
-          return { className: "tip", html: name + `<span class="muted">no transportation length data</span>` };
+          return { className: "tip", html: name + `<span class="muted">no transportation data</span>` };
         const rows = [mode.fmt(p[mode.col])];
         if (state.transportMetric === "roads")
           rows.push(`<span class="muted">collector + local road centreline length — not lane-km</span>`);
-        else
+        else if (state.transportMetric === "bike")
           rows.push(`<span class="muted">dedicated bike-route length — not lane-counted</span>`);
+        else if (state.transportMetric === "parking") {
+          if (p.parking_facilities_total != null)
+            rows.push(`<span class="muted">${p.parking_facilities_total} City-managed facilit${p.parking_facilities_total === 1 ? "y" : "ies"}; ` +
+              `${p.parking_parkade_stalls || 0} parkade stalls, ${p.parking_surface_lot_stalls || 0} surface-lot stalls</span>`);
+          rows.push(`<span class="muted">City-owned/leased public parkades and surface lots only — not all parking in Edmonton</span>`);
+        }
         if (mode.perPerson)
           rows.push(`<span class="muted">population denominator: City of Edmonton Neighbourhood Profiles / 2021 Census</span>`);
         if (p.is_set_aside)
@@ -5475,8 +5567,31 @@
       // CONFIRMED on a real phone by Peter, 2026-07-31.
       //
       // The peek card is the touch preview and carries the same primaryRow line
-      // this would, so suppressing the box outright loses nothing.
+      // this would, so suppressing the box outright loses nothing. Parking dots
+      // are hover-only context too, so they obey the same gate.
       if (noHover()) return null;
+      if (state.view === "transportation" && state.transportMetric === "parking" && !info.object.properties) {
+        const d = info.object;
+        const opts = (d.options || []).map(o => {
+          const bits = [];
+          if (o.use) bits.push(esc(o.use));
+          if (o.billing) bits.push(esc(o.billing));
+          if (o.regular != null) bits.push(`regular $${Number(o.regular).toFixed(2)}`);
+          if (o.gst != null) bits.push(`GST $${Number(o.gst).toFixed(2)}`);
+          if (o.monthly != null) bits.push(`monthly $${Number(o.monthly).toFixed(2)}`);
+          if (o.year) bits.push(esc(String(o.year)));
+          return bits.length ? `<span class="muted">${bits.join(" · ")}</span>` : null;
+        }).filter(Boolean);
+        const rows = [
+          `<b>${esc(d.name || "City-managed parking facility")}</b>`,
+          `${Number(d.stalls || 0).toLocaleString()} stalls · ${esc(d.type || "facility")}`,
+          `<span class="muted">${esc(d.owned || "City-managed")} public parking supply${d.neighbourhood ? " · " + esc(d.neighbourhood) : ""}</span>`,
+          ...opts,
+        ];
+        if ((d.rateRows || 0) > 1)
+          rows.push(`<span class="muted">${d.rateRows} source rate/use rows preserved; stalls counted once</span>`);
+        return { className: "tip", html: rows.join("<br/>") };
+      }
       const p = info.object.properties;
       // The reduction is the PANEL's other half — it trades tooltip detail for a
       // panel that carries it. Where no panel opens (Services), reducing would
@@ -6017,7 +6132,7 @@
           document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "transportation") {
         const mode = transportMode();
-        const clamp = svcScale(mode.col).clamp * (mode.perPerson ? 1 : M_PER_ACRE_TO_KM_PER_KM2);
+        const clamp = svcScale(mode.col).clamp * (mode.perPerson ? 1 : (mode.areaScale || 1));
         document.getElementById("legend-label").textContent = mode.legend;
         document.getElementById("legend-min").textContent = "0";
         document.getElementById("legend-max").textContent = clamp.toFixed(mode.maxDp) + "+";
@@ -6029,8 +6144,11 @@
           : "rgb(104,108,122)";
         document.getElementById("legend-cats").innerHTML = state.transportMetric === "bike"
           ? `<div class="cat"><span class="sw" style="background:rgb(${BIKE_LINE_COLOR.slice(0, 3).join(",")});height:3px;align-self:center"></span><span>Dedicated bike-route network</span></div>`
-          : "";
-        if (state.transportMetric === "bike")
+          : state.transportMetric === "parking"
+            ? `<div class="cat"><span class="sw" style="background:rgb(${PARKADE_COLOR.slice(0, 3).join(",")});border-radius:50%"></span><span>City-managed parkade</span></div>` +
+              `<div class="cat"><span class="sw" style="background:rgb(${SURFACE_LOT_COLOR.slice(0, 3).join(",")});border-radius:50%"></span><span>City-managed surface lot</span></div>`
+            : "";
+        if (state.transportMetric === "bike" || state.transportMetric === "parking")
           document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "development") {
         // Grid mode: the legend follows the spikes (per 100 m cell), not the
@@ -6222,6 +6340,7 @@
       if (state.view !== "transportation") return;
       if (metric === "roads") ensureRoads();
       if (metric === "bike") ensureBikeLines();
+      if (metric === "parking") ensureParkingFacilities();
       refreshTransportChrome();
     }
     function applyTransportDenom(denom) {
@@ -6550,6 +6669,7 @@
       if (v === "services" && state.services.transit) { ensureTransitStations(); ensureLrtLines(); }
       if (v === "services" && state.services.bike) ensureBikeLines();
       if (v === "transportation" && state.transportMetric === "bike") ensureBikeLines();
+      if (v === "transportation" && state.transportMetric === "parking") ensureParkingFacilities();
       // Zoning ground layer for the uses view — fetched once; a missing file
       // resolves null and the view falls back to dominant-colour hoods.
       if (v === "uses" && !zoningData) {
@@ -7012,16 +7132,23 @@
       applyTransportDerivedFields();
       state.hasTransportRoads = state.data.features.some(f => f.properties.road_m_per_acre != null);
       state.hasTransportBike = state.data.features.some(f => f.properties.bike_m_per_acre != null);
+      state.hasTransportParking = state.data.features.some(f => f.properties.parking_stalls_per_acre != null);
       state.hasTransportPopulation = state.data.features.some(f => f.properties.census_population_2021 > 0);
-      if (!state.hasTransportRoads && !state.hasTransportBike) {
+      if (!state.hasTransportRoads && !state.hasTransportBike && !state.hasTransportParking) {
         document.querySelector('#views button[data-view="transportation"]').style.display = "none";
       } else {
         document.querySelector('#transport button[data-transport="roads"]').style.display =
           state.hasTransportRoads ? "" : "none";
         document.querySelector('#transport button[data-transport="bike"]').style.display =
           state.hasTransportBike ? "" : "none";
+        document.querySelector('#transport button[data-transport="parking"]').style.display =
+          state.hasTransportParking ? "" : "none";
         if (!state.hasTransportRoads && state.transportMetric === "roads")
-          state.transportMetric = "bike";
+          state.transportMetric = state.hasTransportBike ? "bike" : "parking";
+        if (!state.hasTransportBike && state.transportMetric === "bike")
+          state.transportMetric = state.hasTransportRoads ? "roads" : "parking";
+        if (!state.hasTransportParking && state.transportMetric === "parking")
+          state.transportMetric = state.hasTransportRoads ? "roads" : "bike";
       }
       if (!state.data.features.some(f => f.properties.storm_charge_per_acre != null)) {
         document.querySelector('#services .svc[data-service="storm"]').style.display = "none";

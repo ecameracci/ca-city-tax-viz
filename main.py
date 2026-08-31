@@ -37,6 +37,7 @@ from load_boundaries import load_boundaries
 from load_zoning import load_zoning, export_zoning_web
 from load_roads import load_roads, export_roads_web
 from load_bike import load_bike, export_bike_web
+from load_parking import load_parking, export_parking_web
 from load_property_info import load_property_info
 from load_population import load_population
 from load_stormwater import load_stormwater
@@ -73,6 +74,7 @@ BOUNDARIES_GEOJSON = ROOT / "data/raw/neighbourhoods.geojson"
 ZONING_GEOJSON = ROOT / "data/raw/zoning.geojson"
 ROADS_GEOJSON = ROOT / "data/raw/roads.geojson"
 BIKE_GEOJSON = ROOT / "data/raw/bike_routes.geojson"
+PARKING_CSV = ROOT / "data/raw/parking_facilities.csv"
 PROPERTY_INFO_CSV = ROOT / "data/raw/Property_Info__Current_Calendar_Year_.csv"
 FIRE_EVENTS_CSV = ROOT / "data/raw/fire_response.csv"
 FIRE_STATIONS_CSV = ROOT / "data/raw/fire_stations.csv"
@@ -114,6 +116,7 @@ ROADS_WEB_OUT = ROOT / "web/data/roads.geojson"
 # Bike network context layer (SPEC_services.md "Transportation lens") — the
 # LRT-lines pattern: geometry only, no metric (the hood plane carries it).
 BIKE_WEB_OUT = ROOT / "web/data/bike_routes.json"
+PARKING_WEB_OUT = ROOT / "web/data/parking_facilities.json"
 ZONING_WEB_OUT = ROOT / "web/data/zoning.geojson"
 GRID_WEB_OUT = ROOT / "web/data/value_grid.json"
 DEV_GRID_WEB_OUT = ROOT / "web/data/dev_grid.json"
@@ -198,6 +201,7 @@ def run(
     zoning_geojson: Path | None = ZONING_GEOJSON,
     roads_geojson: Path | None = ROADS_GEOJSON,
     bike_geojson: Path | None = BIKE_GEOJSON,
+    parking_csv: Path | None = PARKING_CSV,
     property_info_csv: Path | None = PROPERTY_INFO_CSV,
     stormwater_rates_json: Path | None = STORMWATER_RATES_JSON,
     water_rates_json: Path | None = WATER_RATES_JSON,
@@ -307,6 +311,19 @@ def run(
         bike = load_bike(str(bike_geojson), boundaries)
     elif bike_geojson is not None:
         logger.warning("Bike routes file not found (%s) — skipping bike-supply layer", bike_geojson)
+
+    # City-managed public parking facilities (parkades + surface lots), same
+    # optional refreshed-input pattern. This is public parking supply the City
+    # owns/leases, not all parking in Edmonton; duplicate source rate/use rows
+    # are deduped to physical facilities inside load_parking.
+    parking = None
+    if parking_csv is not None and Path(parking_csv).exists():
+        parking = load_parking(parking_csv, boundaries)
+    elif parking_csv is not None:
+        logger.warning(
+            "Parking facilities file not found (%s) — skipping parking-supply layer",
+            parking_csv,
+        )
 
     # Stormwater (utility lens #1, SPEC_utilities.md — MODELED, not billed)
     # rides on inputs the pipeline already has: the property-info CSV and the
@@ -465,7 +482,7 @@ def run(
         )
 
     result = join_and_calculate(
-        aggregated, boundaries, zoning=zoning, roads=roads, bike=bike, stormwater=stormwater,
+        aggregated, boundaries, zoning=zoning, roads=roads, bike=bike, parking=parking, stormwater=stormwater,
         fire=fire, transit=transit, water=water, franchise=franchise,
         permits=permits, permits_recent=permits_recent, permits_long=permits_long,
         lot_acres=lot_acres_hood,
@@ -492,6 +509,9 @@ def run(
         # Bike network context layer — skipped with the bike layer.
         if bike is not None:
             export_bike_web(str(bike_geojson), boundaries, str(BIKE_WEB_OUT))
+        # City-managed parking facility dots — skipped with the parking layer.
+        if parking is not None:
+            export_parking_web(parking_csv, boundaries, PARKING_WEB_OUT)
         # Ground-layer zoning geometry for the Uses view (dissolved by
         # category, clipped to the same setback gaps as the prisms; display
         # only) — skipped with the zoning layer.
@@ -617,6 +637,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--skip-roads", action="store_true", help="skip the road-supply layer")
     p.add_argument("--bike-geojson", type=Path, default=BIKE_GEOJSON)
     p.add_argument("--skip-bike", action="store_true", help="skip the bike-supply layer")
+    p.add_argument("--parking-csv", type=Path, default=PARKING_CSV)
+    p.add_argument("--skip-parking", action="store_true",
+                   help="skip the City-managed parking-supply layer")
     p.add_argument("--skip-property-info", action="store_true",
                    help="skip the lot_size join (grid exports ground-acre only; "
                         "also skips the stormwater lens, which needs the same file)")
@@ -673,6 +696,7 @@ def main(argv: list[str] | None = None) -> None:
         zoning_geojson=None if args.skip_zoning else args.zoning_geojson,
         roads_geojson=None if args.skip_roads else args.roads_geojson,
         bike_geojson=None if args.skip_bike else args.bike_geojson,
+        parking_csv=None if args.skip_parking else args.parking_csv,
         property_info_csv=None if args.skip_property_info else args.property_info_csv,
         stormwater_rates_json=None if args.skip_stormwater else STORMWATER_RATES_JSON,
         water_rates_json=None if args.skip_water else WATER_RATES_JSON,

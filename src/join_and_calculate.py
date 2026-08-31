@@ -37,6 +37,16 @@ POPULATION_COLUMNS = ["census_population_2021"]
 # area_acres, the same denominator as everything else.
 BIKE_COLUMNS = ["bike_m_total"]
 
+# City-managed public parking supply from load_parking (Transportation lens).
+# Counts/stalls are deduplicated to physical facilities upstream; the raw feed's
+# duplicate rate/use rows are preserved only in the web point JSON. Per-acre and
+# per-person stall densities are computed here, same denominator semantics as
+# roads/bike.
+PARKING_COLUMNS = [
+    "parking_facilities_total", "parking_parkade_facilities", "parking_surface_lot_facilities",
+    "parking_stalls_total", "parking_parkade_stalls", "parking_surface_lot_stalls",
+]
+
 # Modeled stormwater column carried from load_stormwater when supplied
 # (utility lens #1, SPEC_utilities.md — MODELED, not billed). The rate-
 # independent lot/effective areas stay in load_stormwater; per-acre is
@@ -273,6 +283,7 @@ def join_and_calculate(
     zoning: pd.DataFrame | None = None,
     roads: pd.DataFrame | None = None,
     bike: pd.DataFrame | None = None,
+    parking: pd.DataFrame | None = None,
     stormwater: pd.DataFrame | None = None,
     fire: pd.DataFrame | None = None,
     transit: pd.DataFrame | None = None,
@@ -310,6 +321,11 @@ def join_and_calculate(
     because their metres are already in road_m_total, so the two supply
     columns are disjoint and may be read together. Boundaries with no
     dedicated route default to a true 0.
+
+    ``parking`` (optional, from load_parking.py) adds City-managed public
+    parking facility/stall counts from the parkades + surface lots feed. The
+    feed has rate/use rows, so load_parking deduplicates physical facilities
+    before summing capacity. Boundaries with no facility default to true 0.
 
     ``stormwater`` (optional, from load_stormwater.py) adds the MODELED
     storm_charge_annual and computes storm_charge_per_acre against boundary
@@ -590,6 +606,46 @@ def join_and_calculate(
             [c for c in out_cols if c != "geometry"]
             + BIKE_COLUMNS + ["bike_m_per_acre"]
             + (["bike_km_per_1000_people"] if "bike_km_per_1000_people" in joined.columns else [])
+            + ["geometry"]
+        )
+
+    # Transportation lens: City-managed public parking supply. This is a point
+    # feed of public parkades/surface lots the City owns or leases, NOT all
+    # parking in Edmonton. load_parking deduplicates physical facilities before
+    # capacity is summed because the source rows are rate/use products.
+    if parking is not None:
+        boundary_names = set(joined["neighbourhood_name"])
+        unmatched_parking = sorted(set(parking["neighbourhood_name"]) - boundary_names)
+        if unmatched_parking:
+            logger.warning(
+                "%d parking neighbourhood(s) with no boundary match (dropped):\n  %s",
+                len(unmatched_parking),
+                "\n  ".join(unmatched_parking),
+            )
+
+        joined = joined.merge(
+            parking[["neighbourhood_name", *PARKING_COLUMNS]],
+            on="neighbourhood_name",
+            how="left",
+            validate="m:1",
+        )
+
+        no_parking = joined["parking_stalls_total"].isna()
+        if no_parking.any():
+            logger.info(
+                "%d boundary neighbourhood(s) with no City-managed parking facility (default 0)",
+                int(no_parking.sum()),
+            )
+        joined[PARKING_COLUMNS] = joined[PARKING_COLUMNS].fillna(0)
+        joined["parking_stalls_per_acre"] = joined["parking_stalls_total"] / safe_area
+        if "census_population_2021" in joined.columns:
+            pop = joined["census_population_2021"].replace(0, float("nan"))
+            joined["parking_stalls_per_1000_people"] = joined["parking_stalls_total"] / pop * 1000
+
+        out_cols = (
+            [c for c in out_cols if c != "geometry"]
+            + PARKING_COLUMNS + ["parking_stalls_per_acre"]
+            + (["parking_stalls_per_1000_people"] if "parking_stalls_per_1000_people" in joined.columns else [])
             + ["geometry"]
         )
 
@@ -1043,6 +1099,9 @@ SLIM_COLUMNS = [
     "is_residential", "census_population_2021",
     "road_m_total", "road_m_per_acre", "road_km_per_1000_people",
     "bike_m_total", "bike_m_per_acre", "bike_km_per_1000_people",
+    "parking_facilities_total", "parking_parkade_facilities", "parking_surface_lot_facilities",
+    "parking_stalls_total", "parking_parkade_stalls", "parking_surface_lot_stalls",
+    "parking_stalls_per_acre", "parking_stalls_per_1000_people",
     "storm_charge_per_acre",
     "fire_events_per_acre", "transit_dep_per_acre",
     "water_charge_per_acre", "water_fixed_per_acre",

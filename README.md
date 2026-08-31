@@ -32,11 +32,11 @@ with a toggleable denominator: **ground acres** (boundary area — robust to rec
 
 The **cost side** layers service supply and modeled service cost per acre: road network supply, a bylaw-native stormwater charge model, fire-rescue service demand, and a per-connection water/sanitary model — each validated against published figures where possible (`docs/FINDINGS_utility_validation.md`). A top-level **Cost** metric summarizes the modeled roads + fire cost per acre where that data is available. Modeled figures are labeled *modeled, not billed*.
 
-A separate **Transportation** view compares measured road length density with dedicated bike-route length density. The default denominator is `km / km²`; when the generated web data includes total length fields and 2021 Census population, it also exposes `km / 1,000 residents`. This is road centreline / route length, not vehicle lane-kilometres.
+A separate **Transportation** view compares measured road length density, dedicated bike-route length density, and **City-managed public parking supply** from parkades and surface lots. The default denominator is `km / km²` for roads/bike and stalls per `km²` for parking; when the generated web data includes totals and 2021 Census population, it also exposes per-1,000-resident metrics. Road/bike length is centreline / route length, not vehicle lane-kilometres, and the parking feed is not all parking in Edmonton.
 
 **Data sources (all open data):**
 - [Property Assessment Data](https://data.edmonton.ca/City-Administration/Property-Assessment-Data-Current-Calendar-Year-/q7d6-ambg) (~440,000 records, refreshed weekly, annual roll)
-- Neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, dedicated cycling infrastructure, fire-rescue events & stations, transit schedule outputs, and property information (lot sizes) — all from the [Edmonton Open Data Portal](https://data.edmonton.ca/)
+- Neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, dedicated cycling infrastructure, City-managed public parking facilities, fire-rescue events & stations, transit schedule outputs, and property information (lot sizes) — all from the [Edmonton Open Data Portal](https://data.edmonton.ca/)
 - [2021 Federal Census: Population](https://data.edmonton.ca/d/eg3i-f4bj) (`eg3i-f4bj`) from the City of Edmonton Neighbourhood Profiles / Federal Census 2021 source, used only as a Transportation per-resident denominator
 - Published mill rates and utility tariffs (EPCOR bylaw rates, franchise fee schedules)
 
@@ -93,9 +93,9 @@ stormwater charge** per acre, **fire-rescue service demand** per acre, and a
 **modeled water/sanitary charge** per acre; the top-level Cost metric shows the
 modeled roads + fire cost per acre; and a Ratio view shows **revenue per road
 metre** or **revenue as a multiple of modeled roads + fire service cost**. A
-Transportation view compares road kilometres with dedicated bike-route
-kilometres by area, with a Census-backed per-resident denominator when the
-needed fields are present. A Uses view maps the zoning bylaw's land-use
+Transportation view compares road kilometres, dedicated bike-route kilometres,
+and City-managed public parking stalls by area, with a Census-backed
+per-resident denominator when the needed fields are present. A Uses view maps the zoning bylaw's land-use
 categories, and a Glass view renders the metric in **100 m grid cells** (the
 Urban3-style detail level). Both the Money and Glass views toggle between
 ground acres and **parcel (lot) acres** as the denominator. A weekly GitHub
