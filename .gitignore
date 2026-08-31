@@ -69,3 +69,6 @@ notebooks/standalone/historical_gap_data/
 
 # Standalone notebook download cache (two FIR workbooks, re-fetchable)
 notebooks/standalone/roll_year_data/
+
+# Local GitHub Pages build artifact
+_site/

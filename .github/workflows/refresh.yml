@@ -11,18 +11,16 @@ on:
     - cron: '0 8 * * 1'      # weekly, Monday 08:00 UTC (cron is UTC, best-effort)
   workflow_dispatch: {}       # manual "Run workflow" button (also the first-run bootstrap)
 
-# Least-privilege: write repo contents (commit regenerated data) + deploy Pages.
-# `issues: write` is the notification channel, NOT a publish capability — the
-# revenue-delta guard below only ever warns, and a warning in a green run
-# reaches nobody. Filing an issue is what makes the email arrive; same pattern,
-# and the same reason, as vintage-digest.yml.
+# Least-privilege: write repo contents (commit regenerated data + publish the
+# built static artifact to web-deployment). `issues: write` is the notification
+# channel, NOT a publish capability — the revenue-delta guard below only ever
+# warns, and a warning in a green run reaches nobody. Filing an issue is what
+# makes the email arrive; same pattern, and the same reason, as vintage-digest.yml.
 permissions:
   contents: write
-  pages: write
-  id-token: write
   issues: write
 
-# Never let two refreshes race on the push/deploy.
+# Never let two refreshes race on the push/publish.
 concurrency:
   group: refresh-map-data
   cancel-in-progress: false
@@ -301,18 +299,8 @@ jobs:
           node tools/profiling/verify-smoke.js http://localhost:8931/index.html
           node tools/profiling/verify-smoke.js http://localhost:8931/full/index.html
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+      - name: Publish built site to web-deployment branch
+        env:
+          DEPLOY_BRANCH: web-deployment
+          GITHUB_TOKEN: ${{ github.token }}
+        run: scripts/publish_site_branch.sh _site
