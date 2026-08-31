@@ -16,6 +16,21 @@ warns — the guard must not add fragility). Verified against all four sources
 
 ---
 
+## Multi-city source manifests — RESEARCHED, NOT YET LIVE
+
+`data/cities/*.json` records researched public-source candidates for future city adapters. These files are manifests only; they are not raw data downloads and are not enough to mark a city live. The browser selector reads `web/data/cities.json`, where non-Edmonton cities stay `available: false` until generated and verified outputs exist.
+
+Current feasibility from the first research pass:
+
+- **Calgary:** strongest Edmonton-like candidate. Open parcel assessment data includes assessed values, classes, community codes/names, land size, and geometry. Tax rates need official page/bylaw pinning or scraping with tests.
+- **Vancouver:** feasible with different semantics. The `property-tax-report` source includes values and `tax_levy`, but `tax_levy` is the total notice amount, not a clean municipal-only mill-rate calculation.
+- **Toronto:** strong spatial/service data, but no open Edmonton-equivalent assessment roll. Revenue/value lenses should be disabled unless lawful aggregate assessment data is obtained.
+- **Hamilton:** strong ArcGIS spatial/service data, but no open assessment roll with value/class fields. Revenue/value lenses should be disabled unless MPAC/Hamilton aggregates or another defensible source is obtained.
+
+Privacy rule for all city adapters: do not publish raw parcel/account/address/folio/roll/applicant/contractor/owner/tenant-level records as web artifacts. Aggregate early to neighbourhood/community/local-area or a privacy-safe grid.
+
+---
+
 ## 0. Property Assessment Data (Historical) — CATALOGUED 2026-07-28, NOT YET USED
 
 **Not in `download_data.py` and not in `data/raw/`.** Catalogued because the

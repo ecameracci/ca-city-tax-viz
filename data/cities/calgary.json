@@ -1,0 +1,20 @@
+{
+  "city": "calgary",
+  "name": "Calgary",
+  "recommended_geography": "Community Districts",
+  "feasibility": "high for revenue/value and spatial services",
+  "summary": "Calgary is the strongest candidate for an Edmonton-like revenue/value map because open parcel assessment data includes assessed values, classes, community codes/names, land size, and geometry.",
+  "privacy": "Parcel assessment records include roll numbers, addresses, parcel polygons, construction year, and property details; aggregate to communities and avoid publishing parcel-level web artifacts.",
+  "sources": {
+    "assessment": { "title": "Current Year Property Assessments (Parcel)", "id": "4bsw-nn7w", "url": "https://data.calgary.ca/api/views/4bsw-nn7w", "format": "CSV/JSON/GeoJSON", "key_fields": ["roll_year", "roll_number", "assessed_value", "assessment_class_description", "re_assessed_value", "nr_assessed_value", "fl_assessed_value", "comm_code", "comm_name", "land_use_designation", "land_size_sm", "multipolygon"], "licence": "City of Calgary Open Data Terms", "caveat": "Excludes titled parking stalls/storage, machinery/equipment, and linear property." },
+    "historical_assessment": { "title": "Historical Property Assessments (Parcel)", "id": "4ur7-wsgc", "url": "https://data.calgary.ca/api/views/4ur7-wsgc", "format": "CSV/JSON/GeoJSON", "caveat": "10M+ rows; use Socrata server-side aggregation rather than casual bulk downloads." },
+    "boundaries": { "title": "Community District Boundaries", "id": "surr-xmvs", "url": "https://data.calgary.ca/api/views/surr-xmvs", "format": "GeoJSON/CSV/JSON", "key_fields": ["comm_code", "name", "class", "sector", "comm_structure", "multipolygon"], "licence": "City of Calgary Open Data Terms" },
+    "tax_rates": { "title": "Property tax rates and bill calculation", "url": "https://www.calgary.ca/property-owners/taxes/bill-rate-calculation.html", "format": "HTML/PDF bylaw/manual", "key_fields": ["Residential City rate", "Non-Residential City rate", "Farm Land City rate"], "caveat": "No Socrata tax-rate API found; scrape or pin official bylaw/page values with tests." },
+    "roads": { "title": "Street Centreline", "id": "4dx8-rtm5", "url": "https://data.calgary.ca/api/views/4dx8-rtm5", "format": "GeoJSON/JSON/CSV", "caveat": "Verify count/fields before implementation. Major Road Network tqjs-vnhy is only a fallback/context layer." },
+    "bike": { "title": "Calgary Bikeways", "id": "jjqk-9b73", "url": "https://data.calgary.ca/api/views/jjqk-9b73", "format": "GeoJSON", "key_fields": ["status", "type", "bicycle_class", "length", "comfort_level", "multilinestring"], "licence": "City of Calgary Open Data Terms", "caveat": "Filter status to existing/current." },
+    "transit": { "title": "Calgary Transit Scheduling Data", "id": "npk7-z3bj", "url": "https://data.calgary.ca/download/npk7-z3bj/application%2Fx-zip-compressed", "format": "GTFS ZIP", "key_fields": ["stops.txt", "routes.txt", "trips.txt", "stop_times.txt", "calendar_dates.txt"], "licence": "City of Calgary Open Data Terms" },
+    "parking": { "title": "Off-Street Parking Zones", "id": "ggxk-g2u3", "url": "https://data.calgary.ca/api/views/ggxk-g2u3", "format": "GeoJSON", "key_fields": ["stall_type", "lot_name", "parking_type", "lot_num", "address_desc", "home_page", "multipolygon"], "licence": "City of Calgary Open Data Terms", "caveat": "No obvious stall-capacity/rate field; map lot polygons/counts unless capacity source is found." },
+    "zoning": { "title": "Land Use Districts", "id": "qe6k-p9nh", "url": "https://data.calgary.ca/api/views/qe6k-p9nh", "format": "GeoJSON", "key_fields": ["lu_bylaw", "lu_code", "label", "description", "major", "generalize", "density", "height", "far", "multipolygon"], "licence": "City of Calgary Open Data Terms" },
+    "population": { "title": "2021 Federal Census Population and Dwellings by Community", "id": "f9wk-wej9", "url": "https://data.calgary.ca/api/views/f9wk-wej9", "format": "CSV/JSON", "key_fields": ["community_code", "community_name", "total_pop_household"], "licence": "City of Calgary Open Data Terms" }
+  }
+}

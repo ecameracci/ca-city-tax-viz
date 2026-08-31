@@ -4,6 +4,12 @@ A public fiscal analysis comparing Edmonton's property tax revenue to the cost o
 
 [Edmonton Tax Visualization](https://ecameracci.github.io/ca-city-tax-viz/)
 
+## Multi-city status
+
+The live deployment currently ships the Edmonton dataset. A city selector scaffold has been added for future adapters, and source manifests have been researched for **Vancouver**, **Calgary**, **Toronto**, and **Hamilton** under `data/cities/` and `docs/cities/`. Those cities remain disabled in the public dropdown until their generated neighbourhood-level data files exist and pass validation.
+
+The expansion is intentionally adapter-based: Calgary and Vancouver have plausible public revenue/value paths, but with local tax semantics; Toronto and Hamilton have strong spatial/service open data but no Edmonton-equivalent open assessment roll, so their revenue/value lenses must stay unavailable unless lawful aggregate assessment data is obtained.
+
 ## What This Is
 
 Several published studies have examined the fiscal balance of suburban development in Edmonton. A Sustainable Prosperity report found that costs to the city will exceed revenues by **nearly $4 billion over 60 years** across just 17 planned new developments. A 2016 analysis of three new neighbourhoods (Decoteau, Riverview, Horse Hills) found they'll cost **$1.4 billion more** than they'll generate over 50 years.

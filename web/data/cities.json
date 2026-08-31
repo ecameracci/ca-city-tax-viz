@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "defaultCity": "edmonton",
+  "cities": [
+    {
+      "id": "edmonton",
+      "name": "Edmonton",
+      "order": 1,
+      "available": true,
+      "status": "live",
+      "centre": [
+        -113.5,
+        53.52
+      ],
+      "zoom": 10.2,
+      "pitch": 52,
+      "bearing": -18
+    },
+    {
+      "id": "vancouver",
+      "name": "Vancouver",
+      "order": 2,
+      "available": false,
+      "status": "research",
+      "branch": "city/vancouver"
+    },
+    {
+      "id": "calgary",
+      "name": "Calgary",
+      "order": 3,
+      "available": false,
+      "status": "research",
+      "branch": "city/calgary"
+    },
+    {
+      "id": "toronto",
+      "name": "Toronto",
+      "order": 4,
+      "available": false,
+      "status": "research",
+      "branch": "city/toronto"
+    },
+    {
+      "id": "hamilton",
+      "name": "Hamilton",
+      "order": 5,
+      "available": false,
+      "status": "research",
+      "branch": "city/hamilton"
+    }
+  ]
+}

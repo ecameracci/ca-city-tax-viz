@@ -99,6 +99,22 @@ html, body { margin: 0; height: 100%; background: #0a0a0f; }
 #title { top: 20px; left: 22px; max-width: 360px; }
 #title h1 { margin: 0 0 4px; font-size: 19px; font-weight: 600; letter-spacing: 0.2px; }
 #title p  { margin: 0; font-size: 12.5px; line-height: 1.5; color: #9a9ab0; }
+
+#city-switcher {
+  top: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 7px; pointer-events: auto;
+  background: rgba(12,12,20,0.7); border: 1px solid #2a2a3a;
+  border-radius: 6px; padding: 6px 9px; font-size: 12px;
+}
+#city-switcher label { color: #9a9ab0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+#city-switcher select {
+  appearance: none; border: 1px solid #3a3a48; border-radius: 4px;
+  background: #15151e; color: #e8e8ef; padding: 4px 22px 4px 8px;
+  font: inherit; cursor: pointer;
+}
+#city-switcher::after {
+  content: "▾"; margin-left: -24px; color: #9a9ab0; pointer-events: none;
+}
 /* Right-side control stack: a single flex column, so pods can show/hide per
    view without leaving gaps. Tier order (View → Variant → Presentation →
    accessibility) is set with `order:` rather than DOM order. The map stays
@@ -457,7 +473,7 @@ html, body { margin: 0; height: 100%; background: #0a0a0f; }
 #legend .cat { display: flex; align-items: center; gap: 7px; margin-top: 5px; color: #9a9ab0; }
 #legend .cat .sw { width: 12px; height: 12px; border-radius: 2px; flex: 0 0 auto; }
 #banner {
-  top: 20px; left: 50%; transform: translateX(-50%);
+  top: 58px; left: 50%; transform: translateX(-50%);
   max-width: 44%; pointer-events: auto; text-align: center;
   background: rgba(40,30,12,0.92); border: 1px solid #6b5a2a; color: #f3e2b0;
   border-radius: 6px; padding: 8px 14px; font-size: 12px; line-height: 1.45;
@@ -762,7 +778,8 @@ body.budget #budget-btn { background: #fcd278; color: #16111a; font-weight: 600;
      as a readable card (the blurb is the top-third space hog). The tap is
      wired in JS but only reachable here — .panel is pointer-events:none on
      desktop, so the handler is inert there and the blurb stays always-on. */
-  #title { max-width: calc(100vw - 44px); pointer-events: auto; cursor: pointer; }
+  #city-switcher { top: 8px; right: 8px; left: auto; transform: none; }
+  #title { top: 44px; max-width: calc(100vw - 44px); pointer-events: auto; cursor: pointer; }
   #title h1 { font-size: 16px; }
   /* 22px ≈ √3 × 13px — ~3× glyph area, matching the #opt-caret bump.
      line-height:0 so the taller glyph does not grow the h1's line box

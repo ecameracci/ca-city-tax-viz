@@ -1,0 +1,19 @@
+{
+  "city": "toronto",
+  "name": "Toronto",
+  "recommended_geography": "158-neighbourhood model",
+  "feasibility": "spatial/services first; revenue/value blocked by missing open assessment roll",
+  "summary": "Toronto has strong open data for boundaries, roads, bike, transit, parking, zoning, permits, fire, and population, but no Edmonton-equivalent open parcel/account assessment roll with assessed value, class, and coordinates/neighbourhood.",
+  "privacy": "Official assessment roll access is public-inspection/in-person and includes owner/tenant information; do not scrape or republish. If obtained lawfully, strip personal fields and aggregate early.",
+  "sources": {
+    "boundaries": { "title": "Neighbourhoods", "id": "neighbourhoods", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=neighbourhoods", "format": "GeoJSON/CSV/SHP/GPKG", "key_fields": ["AREA_ID", "AREA_SHORT_CODE", "AREA_NAME", "AREA_DESC", "CLASSIFICATION", "geometry"], "licence": "Toronto Open Government Licence (verify CKAN metadata before release)", "caveat": "Use 158-neighbourhood model consistently; do not mix older 140 model." },
+    "assessment": { "title": "No open Edmonton-equivalent assessment roll found", "url": "https://www.toronto.ca/services-payments/property-taxes-utilities/property-tax/property-assessment-and-appeals/", "format": "public inspection only", "caveat": "Revenue/value lenses should be unavailable unless a lawful aggregate or extract is secured." },
+    "tax_rates": { "title": "Property tax rates", "url": "https://www.toronto.ca/services-payments/property-taxes-utilities/property-tax/property-tax-rates-and-fees/", "format": "HTML/PDF/manual", "caveat": "Usable only once assessment/class inputs exist." },
+    "roads": { "title": "Toronto Centreline", "id": "toronto-centreline-tcl", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=toronto-centreline-tcl", "format": "GeoJSON/CSV/SHP/GPKG", "key_fields": ["CENTRELINE_ID", "LINEAR_NAME_FULL", "ONEWAY_DIR_CODE", "FEATURE_CODE", "geometry"] },
+    "bike": { "title": "Cycling Network", "id": "cycling-network", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=cycling-network", "format": "GeoJSON/CSV/SHP/GPKG", "key_fields": ["INFRA_LOWORDER", "INFRA_HIGHORDER", "STATUS", "geometry"] },
+    "transit": { "title": "TTC routes and schedules", "id": "ttc-routes-and-schedules", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=ttc-routes-and-schedules", "format": "GTFS ZIP", "key_fields": ["stops.txt", "routes.txt", "trips.txt", "stop_times.txt", "calendar_dates.txt"] },
+    "parking": { "title": "Green P Parking", "id": "green-p-parking", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=green-p-parking", "format": "JSON/CSV/GeoJSON where available", "key_fields": ["id", "address", "lat", "lng", "capacity"], "caveat": "Toronto Parking Authority off-street parking; confirm capacity field and licensing." },
+    "zoning": { "title": "Zoning By-law", "id": "zoning-by-law", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=zoning-by-law", "format": "GeoJSON/SHP/GPKG", "key_fields": ["zone category/code", "geometry"], "caveat": "Needs Toronto-specific zone classification mapping." },
+    "population": { "title": "Neighbourhood Profiles 2021", "id": "neighbourhood-profiles", "url": "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/package_show?id=neighbourhood-profiles", "format": "XLSX", "key_fields": ["Population, 2021", "neighbourhood columns"], "caveat": "Wide profile workbook; loader must unpivot." }
+  }
+}
