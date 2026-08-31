@@ -23,6 +23,7 @@ Most inputs come from Edmonton's Socrata open-data portal:
   - permits        24uj-dj8v  (General Building Permits, slim $select)   -> CSV
   - schools_public 996c-239n  (EPSB School Locations)                   -> CSV
   - schools_catholic gfxq-u8uu (Edmonton Catholic Schools, current)      -> CSV
+  - census_population_2021 eg3i-f4bj (2021 Federal Census: Population)   -> CSV
 
 Mill rates (pwis-wc4c) are NOT fetched here — they live in the committed
 ``data/mill_rates.json`` (see DATA.md); refreshing them for a new year is a
@@ -252,6 +253,17 @@ SOURCES = {
         "dest": RAW / "schools_catholic.csv",
         "limit": 2000,  # 97 schools as of 2026-08
         "count_url": _count_url("gfxq-u8uu"),
+    },
+    "census_population_2021": {
+        # Population denominator for Transportation per-resident metrics.
+        # Same 2021 Federal Census population source surfaced in the City of
+        # Edmonton Neighbourhood Profiles Tableau workbook; Socrata export is
+        # used here because the Tableau CSV endpoint only returns the workbook's
+        # selected neighbourhood by default.
+        "url": "https://data.edmonton.ca/resource/eg3i-f4bj.csv?$limit=1000",
+        "dest": RAW / "census_population_2021.csv",
+        "limit": 1000,  # 278 neighbourhood rows as of 2026-08
+        "count_url": _count_url("eg3i-f4bj"),
     },
 }
 

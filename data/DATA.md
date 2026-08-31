@@ -1991,3 +1991,16 @@ the filed base for the right year and ~10% off for a neighbouring one.
 - **Column positions are checked, not trusted.** `_check_header` raises if
   Schedule MR's headers stop matching the expected substrings, rather than
   reading a shifted column blind.
+
+## 17. 2021 Federal Census population (Transportation denominator, added 2026-08-31)
+
+**Source:** Edmonton Open Data dataset `eg3i-f4bj` — "2021 Federal Census: Population". This is the City of Edmonton Neighbourhood Profiles / Federal Census 2021 population source; the same population family is surfaced in the City's Tableau Public Neighbourhood Profiles workbook. The pipeline downloads the Socrata CSV (`data/raw/census_population_2021.csv`) because the simple Tableau crosstab CSV endpoint was verified to return only the workbook's default selected neighbourhood (`ABBOTTSFIELD`) unless a workbook session/filter is driven interactively.
+
+**Use in this project:** denominator only. The Transportation view may show road kilometres or dedicated bike-route kilometres per 1,000 residents only when the web GeoJSON carries both:
+
+- measured total length (`road_m_total` or `bike_m_total`), and
+- `census_population_2021` from this source.
+
+No population is estimated or interpolated. Neighbourhoods without a 2021 Census row stay missing for the per-resident mode; the app falls back to the area denominator (`km / km²`) where person denominators are unavailable.
+
+**Name alignment:** the 2021 Census source still names `Oliver`; the current assessment/boundary data uses `WÎHKWÊNTÔWIN`, so `load_population.py` maps `OLIVER` → `WÎHKWÊNTÔWIN` before joining.

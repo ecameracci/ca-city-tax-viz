@@ -264,8 +264,13 @@
     </div>
     <span class="hd" id="transport-hd">Transportation metric</span>
     <div id="transport">
-      <button data-transport="roads" class="active" title="Collector + local road length density, expressed as road kilometres per square kilometre. Not lane-counted: the source has road centreline length, not vehicle lane counts.">Road km</button>
-      <button data-transport="bike" title="Dedicated cycling-infrastructure length density, expressed as route kilometres per square kilometre. Streets merely signed as bike routes are excluded upstream.">Bike-route km</button>
+      <button data-transport="roads" class="active" title="Collector + local road length density. Not lane-counted: the source has road centreline length, not vehicle lane counts.">Road km</button>
+      <button data-transport="bike" title="Dedicated cycling-infrastructure route length. Streets merely signed as bike routes are excluded upstream; route length is not lane-counted.">Bike-route km</button>
+    </div>
+    <span class="hd" id="transport-denom-hd">Denominator</span>
+    <div id="transport-denom">
+      <button data-transport-denom="area" class="active" title="Show length density as kilometres per square kilometre — available in the current neighbourhood file.">Per km²</button>
+      <button data-transport-denom="person" title="Show kilometres per 1,000 residents using total road/bike length and 2021 Census population. Hidden until those fields are present in the neighbourhood file.">Per person</button>
     </div>
     <span class="hd" id="prism-hd">Money plane</span>
     <label id="prism-row" title="Prism opacity — how strongly the ratio prisms overlay the road network">
@@ -867,30 +872,45 @@
     const M_PER_ACRE_TO_KM_PER_KM2 = 0.247105381;
     const TRANSPORT = {
       roads: {
-        col: "road_m_per_acre",
+        areaCol: "road_m_per_acre",
+        totalCol: "road_m_total",
+        personCol: "road_km_per_1000_people",
         label: "Road km",
-        title: "Edmonton: Road Kilometres per km²",
-        legend: "Road kilometres per km²",
+        areaTitle: "Edmonton: Road Kilometres per km²",
+        personTitle: "Edmonton: Road Kilometres per 1,000 Residents",
+        areaLegend: "Road kilometres per km²",
+        personLegend: "Road kilometres per 1,000 residents (2021 Census)",
         maxDp: 1,
         transform: null,
-        blurb: "Each neighbourhood is coloured by collector + local road length " +
+        areaBlurb: "Each neighbourhood is coloured by collector + local road length " +
                "density, expressed as road kilometres per square kilometre. " +
                "This is centreline road length, not vehicle lane-kilometres: " +
                "the source data does not include lane counts. Arterials are " +
                "shown as neutral context, matching the Services view, because " +
                "they are shared citywide infrastructure. Colour is linear. " +
                "Grey = set-aside natural/undeveloped land.",
-        fmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
+        personBlurb: "Each neighbourhood is coloured by collector + local road " +
+               "kilometres per 1,000 residents, using total road length and " +
+               "2021 Census population from the City of Edmonton Neighbourhood " +
+               "Profiles Tableau workbook. This is centreline road length, not " +
+               "vehicle lane-kilometres. Colour is linear. Grey = set-aside " +
+               "natural/undeveloped land or missing/zero population.",
+        areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " road km / km²",
+        personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " road km / 1,000 residents",
       },
       bike: {
-        col: "bike_m_per_acre",
+        areaCol: "bike_m_per_acre",
+        totalCol: "bike_m_total",
+        personCol: "bike_km_per_1000_people",
         label: "Bike-route km",
-        title: "Edmonton: Dedicated Bike-Route Kilometres per km²",
-        legend: "Dedicated bike-route kilometres per km² (sqrt colour)",
+        areaTitle: "Edmonton: Dedicated Bike-Route Kilometres per km²",
+        personTitle: "Edmonton: Dedicated Bike-Route Kilometres per 1,000 Residents",
+        areaLegend: "Dedicated bike-route kilometres per km² (sqrt colour)",
+        personLegend: "Dedicated bike-route kilometres per 1,000 residents (sqrt colour)",
         maxDp: 1,
         transform: "sqrt",
-        blurb: "Each neighbourhood is coloured by dedicated cycling-infrastructure " +
+        areaBlurb: "Each neighbourhood is coloured by dedicated cycling-infrastructure " +
                "length density, expressed as route kilometres per square kilometre: " +
                "protected, painted and contra-flow bike lanes, local street " +
                "bikeways, and off-road shared pathways and trails. This is route " +
@@ -898,11 +918,46 @@
                "routes are excluded upstream, as are walkways and routes marked " +
                "coming soon. Lines trace the dedicated bike-route network. Colour " +
                "is square-root scaled. Grey = set-aside natural/undeveloped land.",
-        fmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
+        personBlurb: "Each neighbourhood is coloured by dedicated bike-route " +
+               "kilometres per 1,000 residents, using total dedicated route length " +
+               "and 2021 Census population from the City of Edmonton Neighbourhood " +
+               "Profiles Tableau workbook. This is route length, not a lane-counted " +
+               "measure. Colour is square-root scaled. Grey = set-aside natural/" +
+               "undeveloped land or missing/zero population.",
+        areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " dedicated bike-route km / km²",
+        personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " dedicated bike-route km / 1,000 residents",
       },
     };
-    const transportMode = () => TRANSPORT[state.transportMetric];
+    const transportSupportsPerson = metric => {
+      const mode = TRANSPORT[metric];
+      return !!(mode && state.hasTransportPopulation &&
+        state.data && state.data.features.some(f => f.properties[mode.personCol] != null));
+    };
+    function transportMode() {
+      const base = TRANSPORT[state.transportMetric];
+      const perPerson = state.transportDenom === "person" && transportSupportsPerson(state.transportMetric);
+      return {
+        ...base,
+        col: perPerson ? base.personCol : base.areaCol,
+        title: perPerson ? base.personTitle : base.areaTitle,
+        legend: perPerson ? base.personLegend : base.areaLegend,
+        blurb: perPerson ? base.personBlurb : base.areaBlurb,
+        fmt: perPerson ? base.personFmt : base.areaFmt,
+        perPerson,
+      };
+    }
+    function applyTransportDerivedFields() {
+      if (!state.data) return;
+      for (const f of state.data.features) {
+        const p = f.properties;
+        const pop = p.census_population_2021;
+        if (pop > 0 && p.road_m_total != null)
+          p.road_km_per_1000_people = p.road_m_total / pop;
+        if (pop > 0 && p.bike_m_total != null)
+          p.bike_km_per_1000_people = p.bike_m_total / pop;
+      }
+    }
 
     // --- uses view (use-mix, 2026-07-03) -------------------------------------
     // Dominant zoned land use per hood — categorical, flat (no extrusion on
@@ -1534,6 +1589,7 @@
                     amenity: { lrt: false, school: false },
                     ratioDenom: "roads", // Ratio-view denominator (RATIO_DENOMS); persists like denom
                     transportMetric: "roads", // Transportation-view metric: road length density | dedicated bike-route length density
+                    transportDenom: "area", // Transportation denominator: per km² by default; per-person only when Census population + totals ship
                     devMetric: "units", // Development-view sub-metric: units | permits per acre
                     devWindow: "long", // Development-view activity window: 3yr (recent) | 5yr | long (2009–2025, the default)
                     devGrid: true, // Development-view 100 m detail grid (the default; off = the hood choropleth)
@@ -5002,6 +5058,12 @@
         const pa = p[devCol()];
         return pa == null ? `<span class="muted">no permit data</span>` : fmtDev(pa);
       }
+      if (state.view === "transportation") {
+        const mode = transportMode();
+        return p[mode.col] == null
+          ? `<span class="muted">no transportation length data</span>`
+          : mode.fmt(p[mode.col]);
+      }
       if (state.view === "infill") {
         if (p.is_set_aside)
           return `<span class="muted">Set aside — off the scale</span>`;
@@ -5066,6 +5128,8 @@
           rows.push(`<span class="muted">collector + local road centreline length — not lane-km</span>`);
         else
           rows.push(`<span class="muted">dedicated bike-route length — not lane-counted</span>`);
+        if (mode.perPerson)
+          rows.push(`<span class="muted">population denominator: City of Edmonton Neighbourhood Profiles / 2021 Census</span>`);
         if (p.is_set_aside)
           rows.push(`<span class="muted">Set aside — ${esc(p.set_aside_reason)}</span>`);
         return { className: "tip", html: name + rows.join("<br/>") };
@@ -5953,7 +6017,7 @@
           document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "transportation") {
         const mode = transportMode();
-        const clamp = svcScale(mode.col).clamp * M_PER_ACRE_TO_KM_PER_KM2;
+        const clamp = svcScale(mode.col).clamp * (mode.perPerson ? 1 : M_PER_ACRE_TO_KM_PER_KM2);
         document.getElementById("legend-label").textContent = mode.legend;
         document.getElementById("legend-min").textContent = "0";
         document.getElementById("legend-max").textContent = clamp.toFixed(mode.maxDp) + "+";
@@ -6131,8 +6195,25 @@
     }
 
     function syncTransportControls() {
+      const canPerson = transportSupportsPerson(state.transportMetric);
+      if (!canPerson && state.transportDenom === "person") state.transportDenom = "area";
       document.querySelectorAll("#transport button").forEach(b =>
         b.classList.toggle("active", b.dataset.transport === state.transportMetric));
+      document.getElementById("transport-denom-hd").style.display =
+        state.view === "transportation" && canPerson ? "block" : "none";
+      document.getElementById("transport-denom").style.display =
+        state.view === "transportation" && canPerson ? "flex" : "none";
+      document.querySelector('#transport-denom button[data-transport-denom="person"]').style.display =
+        canPerson ? "" : "none";
+      document.querySelectorAll("#transport-denom button").forEach(b =>
+        b.classList.toggle("active", b.dataset.transportDenom === state.transportDenom));
+    }
+    function refreshTransportChrome() {
+      syncTransportControls();
+      document.getElementById("title-h").textContent = transportMode().title;
+      document.getElementById("title-p").textContent = transportMode().blurb;
+      refreshLegend();
+      overlay.setProps({ layers: buildLayers() });
     }
     function applyTransportMetric(metric) {
       if (metric === state.transportMetric || !TRANSPORT[metric]) return;
@@ -6141,10 +6222,14 @@
       if (state.view !== "transportation") return;
       if (metric === "roads") ensureRoads();
       if (metric === "bike") ensureBikeLines();
-      document.getElementById("title-h").textContent = transportMode().title;
-      document.getElementById("title-p").textContent = transportMode().blurb;
-      refreshLegend();
-      overlay.setProps({ layers: buildLayers() });
+      refreshTransportChrome();
+    }
+    function applyTransportDenom(denom) {
+      if (denom === state.transportDenom || !["area", "person"].includes(denom)) return;
+      if (denom === "person" && !transportSupportsPerson(state.transportMetric)) return;
+      state.transportDenom = denom;
+      if (state.view !== "transportation") { syncTransportControls(); return; }
+      refreshTransportChrome();
     }
 
     // Toggle the Uses view's residential prisms (height = share of zoned
@@ -6865,6 +6950,8 @@
         b.addEventListener("click", () => applyDevMode(b.dataset.devmode)));
       document.querySelectorAll("#transport button").forEach(b =>
         b.addEventListener("click", () => applyTransportMetric(b.dataset.transport)));
+      document.querySelectorAll("#transport-denom button").forEach(b =>
+        b.addEventListener("click", () => applyTransportDenom(b.dataset.transportDenom)));
       document.querySelectorAll("#moneymode button").forEach(b =>
         b.addEventListener("click", () => applyMoneyMode(b.dataset.moneymode)));
       document.querySelectorAll("#chgwindow button").forEach(b =>
@@ -6922,8 +7009,10 @@
         document.querySelectorAll('#views button[data-view="services"], #views button[data-view="ratio"]')
           .forEach(b => { b.style.display = "none"; });
       }
+      applyTransportDerivedFields();
       state.hasTransportRoads = state.data.features.some(f => f.properties.road_m_per_acre != null);
       state.hasTransportBike = state.data.features.some(f => f.properties.bike_m_per_acre != null);
+      state.hasTransportPopulation = state.data.features.some(f => f.properties.census_population_2021 > 0);
       if (!state.hasTransportRoads && !state.hasTransportBike) {
         document.querySelector('#views button[data-view="transportation"]').style.display = "none";
       } else {
@@ -7010,6 +7099,8 @@
       document.getElementById("prism-row").style.display = "none";
       document.getElementById("transport-hd").style.display = "none";
       document.getElementById("transport").style.display = "none";
+      document.getElementById("transport-denom-hd").style.display = "none";
+      document.getElementById("transport-denom").style.display = "none";
       // Same reason, same place: the amenity rows are Glass-only and have no
       // CSS default-hidden state, so on the Money default they need hiding
       // here. (In Glass the sync runs from applyView, after the grid fetch.)

@@ -39,6 +39,7 @@ const [url] = process.argv.slice(2);
       ? document.getElementById('legend-cats').textContent.trim() : '',
     panelShown: getComputedStyle(document.getElementById('layers')).display !== 'none',
     transportShown: getComputedStyle(document.getElementById('transport')).display !== 'none',
+    transportDenomShown: getComputedStyle(document.getElementById('transport-denom')).display !== 'none',
     moneyPodShown: getComputedStyle(document.getElementById('toggle')).display !== 'none',
     servicesShown: getComputedStyle(document.getElementById('services')).display !== 'none',
     prismRowShown: getComputedStyle(document.getElementById('prism-row')).display !== 'none',
@@ -46,6 +47,12 @@ const [url] = process.argv.slice(2);
       .filter(b => getComputedStyle(b).display !== 'none' && b.classList.contains('active'))
       .map(b => b.dataset.transport),
     visibleTransport: [...document.querySelectorAll('#transport button')]
+      .filter(b => getComputedStyle(b).display !== 'none')
+      .map(b => b.textContent.trim()),
+    activeTransportDenom: [...document.querySelectorAll('#transport-denom button')]
+      .filter(b => getComputedStyle(b).display !== 'none' && b.classList.contains('active'))
+      .map(b => b.dataset.transportDenom),
+    visibleTransportDenom: [...document.querySelectorAll('#transport-denom button')]
       .filter(b => getComputedStyle(b).display !== 'none')
       .map(b => b.textContent.trim()),
     layers: typeof overlay !== 'undefined' ? overlay._deck.props.layers.map(l => l.id) : [],
@@ -57,6 +64,10 @@ const [url] = process.argv.slice(2);
   check('enters the Transportation view', roads.view === 'transportation', roads.view);
   check('defaults to road length density', roads.metric === 'roads', roads.metric);
   check('shows the Transportation controls', roads.panelShown && roads.transportShown);
+  check('shows per-person denominator only when supported by shipped Census + total-length fields',
+    roads.transportDenomShown && roads.visibleTransportDenom.join('|') === 'Per km²|Per person',
+    roads.visibleTransportDenom.join('|'));
+  check('defaults Transportation denominator to per km²', roads.activeTransportDenom.join('|') === 'area', roads.activeTransportDenom.join('|'));
   check('hides Money/Services/Prism controls', !roads.moneyPodShown && !roads.servicesShown && !roads.prismRowShown);
   check('offers Road km and Bike-route km toggles', roads.visibleTransport.join('|') === 'Road km|Bike-route km', roads.visibleTransport.join('|'));
   check('only Road km is active on entry', roads.activeTransport.join('|') === 'roads', roads.activeTransport.join('|'));
@@ -86,12 +97,33 @@ const [url] = process.argv.slice(2);
       arterialNeutral: overlay._deck.props.layers.find(l => l.id === 'roads-ground')
         .props.getLineColor(art).join() === ARTERIAL_COLOR.join(),
       tooltip: tooltipFor({ object: mid }).html,
+      primary: primaryRow(mid.properties),
     };
   });
   check('road scale clamp is the data p97.5', roadMath.clampMatchesP975);
   check('road plane uses linear ramp colour', roadMath.planeFillOk);
   check('road access lines are coloured, arterials neutral', roadMath.roadAccessColoured && roadMath.arterialNeutral);
   check('road tooltip uses km/km² and caveats lane-km', /road km \/ km²/.test(roadMath.tooltip) && /not lane-km/i.test(roadMath.tooltip), roadMath.tooltip);
+  check('road panel-mode primary row uses km/km², not money units',
+    /road km \/ km²/.test(roadMath.primary) && !/\$|acre/.test(roadMath.primary), roadMath.primary);
+
+  await click('#transport-denom button[data-transport-denom="person"]');
+  await page.waitForTimeout(1000);
+  const roadsPerson = await chrome();
+  check('switches road Transportation denominator to residents',
+    /1,000 Residents/i.test(roadsPerson.title) && roadsPerson.activeTransportDenom.join('|') === 'person',
+    `${roadsPerson.title} / ${roadsPerson.activeTransportDenom.join('|')}`);
+  const roadPersonMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('road per-resident tooltip cites Census denominator and avoids area/money units',
+    /road km \/ 1,000 residents/.test(roadPersonMath.tooltip) && /2021 Census/i.test(roadPersonMath.tooltip) && !/\$|acre/.test(roadPersonMath.primary),
+    roadPersonMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
 
   await click('#transport button[data-transport="bike"]');
   await page.waitForTimeout(3500); // bike route lazy-fetch + rebuild
@@ -119,11 +151,32 @@ const [url] = process.argv.slice(2);
       clampMatchesP975: Math.abs(scale.clamp - q) < 1e-6,
       planeFillOk: plane.props.getFillColor(mid).join() === expected.join(),
       tooltip: tooltipFor({ object: mid }).html,
+      primary: primaryRow(mid.properties),
     };
   });
   check('bike scale clamp is the data p97.5', bikeMath.clampMatchesP975);
   check('bike plane uses sqrt ramp colour', bikeMath.planeFillOk);
   check('bike tooltip uses km/km² and caveats lane-counting', /dedicated bike-route km \/ km²/.test(bikeMath.tooltip) && /not lane-counted/i.test(bikeMath.tooltip), bikeMath.tooltip);
+  check('bike panel-mode primary row uses km/km², not money units',
+    /dedicated bike-route km \/ km²/.test(bikeMath.primary) && !/\$|acre/.test(bikeMath.primary), bikeMath.primary);
+
+  await click('#transport-denom button[data-transport-denom="person"]');
+  await page.waitForTimeout(1000);
+  const bikePerson = await chrome();
+  check('switches bike Transportation denominator to residents',
+    /1,000 Residents/i.test(bikePerson.title) && bikePerson.activeTransportDenom.join('|') === 'person',
+    `${bikePerson.title} / ${bikePerson.activeTransportDenom.join('|')}`);
+  const bikePersonMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('bike per-resident tooltip cites Census denominator and avoids area/money units',
+    /dedicated bike-route km \/ 1,000 residents/.test(bikePersonMath.tooltip) && /2021 Census/i.test(bikePersonMath.tooltip) && !/\$|acre/.test(bikePersonMath.primary),
+    bikePersonMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
 
   await click('#transport button[data-transport="roads"]');
   await page.waitForTimeout(1500);

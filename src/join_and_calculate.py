@@ -27,6 +27,8 @@ ZONING_COLUMNS = [
 # HERE against boundary area_acres — the same denominator as value/revenue.
 ROAD_COLUMNS = ["road_m_total"]
 
+POPULATION_COLUMNS = ["census_population_2021"]
+
 # Bike-supply column carried from load_bike when a bike frame is supplied
 # (services lens, SPEC_services.md "Transportation lens"). bike_m_total =
 # DEDICATED cycling assets only — shared roadways are excluded there precisely
@@ -281,6 +283,7 @@ def join_and_calculate(
     permits_long: pd.DataFrame | None = None,
     lot_acres: pd.DataFrame | None = None,
     unit_costs: dict[str, float] | None = None,
+    population: pd.DataFrame | None = None,
 ) -> gpd.GeoDataFrame:
     """Left join boundaries → assessment, flag unmatched rows, compute value_per_acre.
 
@@ -351,6 +354,12 @@ def join_and_calculate(
     Requires BOTH the roads and fire frames: with either missing the composite
     would be a mislabeled one-term metric, so it is skipped with a warning.
 
+    ``population`` (optional, from load_population.py) adds 2021 Federal Census
+    neighbourhood population totals, used only as a denominator for
+    Transportation per-resident readouts. It is not interpolated or estimated;
+    boundaries with no Census row remain NaN and are hidden from per-person
+    mode.
+
     ``lot_acres`` (optional, from export_value_grid.build_hood_lot_acres) adds
     the neighbourhood lot-acre denominator toggle: value_per_lot_acre /
     revenue_per_lot_acre (eligible dollars / deduped parcel acres) plus
@@ -405,6 +414,36 @@ def join_and_calculate(
 
     out_cols = ["neighbourhood_name", "total_assessed_value", "area_acres", "value_per_acre", "geometry"]
 
+    # 2021 Federal Census population denominator (City of Edmonton
+    # Neighbourhood Profiles / Census table). This joins early so derived
+    # Transportation metrics can rely on it after road/bike totals arrive.
+    if population is not None:
+        boundary_names = set(joined["neighbourhood_name"])
+        unmatched_pop = sorted(set(population["neighbourhood_name"]) - boundary_names)
+        if unmatched_pop:
+            logger.warning(
+                "%d population neighbourhood(s) with no boundary match (dropped):\n  %s",
+                len(unmatched_pop),
+                "\n  ".join(unmatched_pop),
+            )
+        joined = joined.merge(
+            population[["neighbourhood_name", *POPULATION_COLUMNS]],
+            on="neighbourhood_name",
+            how="left",
+            validate="m:1",
+        )
+        no_pop = joined["census_population_2021"].isna()
+        if no_pop.any():
+            logger.info(
+                "%d boundary neighbourhood(s) without 2021 Census population; "
+                "per-resident Transportation metrics omitted there",
+                int(no_pop.sum()),
+            )
+        out_cols = (
+            [c for c in out_cols if c != "geometry"]
+            + POPULATION_COLUMNS + ["geometry"]
+        )
+
     # Revenue phase: when total_revenue is present (apply_tax_rates ran upstream),
     # add revenue_per_acre alongside value_per_acre — both metrics, web toggle.
     if "total_revenue" in joined.columns:
@@ -413,6 +452,8 @@ def join_and_calculate(
             "neighbourhood_name", "total_assessed_value", "total_revenue",
             "area_acres", "value_per_acre", "revenue_per_acre", "geometry",
         ]
+        if "census_population_2021" in joined.columns:
+            out_cols = [c for c in out_cols if c != "geometry"] + POPULATION_COLUMNS + ["geometry"]
         # Revenue-lens readout columns, carried only if the caller computed them
         # (revenue_share_city in main.py, rev_frac_* from revenue_by_zone) —
         # both are optional upstream steps, so this must not require them.
@@ -501,10 +542,15 @@ def join_and_calculate(
         # No overlay means genuinely zero city collector/local road there.
         joined["road_m_total"] = joined["road_m_total"].fillna(0.0)
         joined["road_m_per_acre"] = joined["road_m_total"] / safe_area
+        if "census_population_2021" in joined.columns:
+            pop = joined["census_population_2021"].replace(0, float("nan"))
+            joined["road_km_per_1000_people"] = joined["road_m_total"] / pop
 
         out_cols = (
             [c for c in out_cols if c != "geometry"]
-            + ROAD_COLUMNS + ["road_m_per_acre"] + ["geometry"]
+            + ROAD_COLUMNS + ["road_m_per_acre"]
+            + (["road_km_per_1000_people"] if "road_km_per_1000_people" in joined.columns else [])
+            + ["geometry"]
         )
 
     # Services lens: dedicated cycling supply (SPEC_services.md "Transportation
@@ -536,10 +582,15 @@ def join_and_calculate(
             )
         joined["bike_m_total"] = joined["bike_m_total"].fillna(0.0)
         joined["bike_m_per_acre"] = joined["bike_m_total"] / safe_area
+        if "census_population_2021" in joined.columns:
+            pop = joined["census_population_2021"].replace(0, float("nan"))
+            joined["bike_km_per_1000_people"] = joined["bike_m_total"] / pop
 
         out_cols = (
             [c for c in out_cols if c != "geometry"]
-            + BIKE_COLUMNS + ["bike_m_per_acre"] + ["geometry"]
+            + BIKE_COLUMNS + ["bike_m_per_acre"]
+            + (["bike_km_per_1000_people"] if "bike_km_per_1000_people" in joined.columns else [])
+            + ["geometry"]
         )
 
     # Utility lens #1: merge the modeled stormwater charge when supplied
@@ -947,7 +998,10 @@ def join_and_calculate(
 # value↔revenue toggle reads both metrics; is_set_aside/set_aside_reason drive
 # the neutral-grey render + tooltip; is_residential drives the residential lens;
 # the frac_* composition (sums to 1) drives the use-mix view (dominant use is
-# derived client-side); road_m_per_acre, storm_charge_per_acre,
+# derived client-side); road_m_total/road_m_per_acre and
+# bike_m_total/bike_m_per_acre drive the Transportation view (totals ship only
+# to support per-resident denominators when 2021 Census population is present);
+# road_m_per_acre, storm_charge_per_acre,
 # fire_events_per_acre, and the water_* pair are the Services-view metrics
 # (SPEC_services.md, SPEC_utilities.md — ratios only, totals stay out of the
 # slim file like total_assessed_value does; the storm and water figures are
@@ -986,7 +1040,9 @@ SLIM_COLUMNS = [
     "frac_never", "frac_notyet", "frac_inst",
     "frac_residential", "frac_commercial", "frac_industrial",
     "frac_mixed", "frac_dc", "frac_other",
-    "is_residential", "road_m_per_acre", "bike_m_per_acre",
+    "is_residential", "census_population_2021",
+    "road_m_total", "road_m_per_acre", "road_km_per_1000_people",
+    "bike_m_total", "bike_m_per_acre", "bike_km_per_1000_people",
     "storm_charge_per_acre",
     "fire_events_per_acre", "transit_dep_per_acre",
     "water_charge_per_acre", "water_fixed_per_acre",

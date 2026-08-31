@@ -38,6 +38,7 @@ from load_zoning import load_zoning, export_zoning_web
 from load_roads import load_roads, export_roads_web
 from load_bike import load_bike, export_bike_web
 from load_property_info import load_property_info
+from load_population import load_population
 from load_stormwater import load_stormwater
 from load_water import load_water
 from load_franchise import load_franchise
@@ -94,6 +95,11 @@ HISTORICAL_CSV = ROOT / "data/raw/assessment_historical_by_hood.csv"
 # boards publish separately and load_schools harmonizes them.
 SCHOOLS_PUBLIC_CSV = ROOT / "data/raw/schools_public.csv"
 SCHOOLS_CATHOLIC_CSV = ROOT / "data/raw/schools_catholic.csv"
+# 2021 Census neighbourhood population totals from City of Edmonton Open Data
+# (`2021 Federal Census: Population`, the same source surfaced through the
+# City's Tableau Neighbourhood Profiles workbook). Used only as a denominator;
+# missing rows keep per-resident Transportation metrics hidden for that hood.
+CENSUS_POPULATION_2021_CSV = ROOT / "data/raw/census_population_2021.csv"
 MILL_RATES_JSON = ROOT / "data/mill_rates.json"
 STORMWATER_RATES_JSON = ROOT / "data/stormwater_rates.json"
 WATER_RATES_JSON = ROOT / "data/water_rates.json"
@@ -215,6 +221,7 @@ def run(
     lrt_routes_geojson: Path | None = LRT_ROUTES_GEOJSON,
     schools_public_csv: Path | None = SCHOOLS_PUBLIC_CSV,
     schools_catholic_csv: Path | None = SCHOOLS_CATHOLIC_CSV,
+    census_population_2021_csv: Path | None = CENSUS_POPULATION_2021_CSV,
     amenity_distances: bool = True,
     setback_m: float = SETBACK_M,
     simplify_tolerance_m: float = SIMPLIFY_TOLERANCE_M,
@@ -424,6 +431,19 @@ def run(
             permits_csv,
         )
 
+    # 2021 Census population denominator for per-resident Transportation metrics.
+    # The current map can still run without it; the client hides per-person mode
+    # unless this and road/bike total-length columns are present.
+    population = None
+    if census_population_2021_csv is not None and Path(census_population_2021_csv).exists():
+        population = load_population(census_population_2021_csv)
+    elif census_population_2021_csv is not None:
+        logger.warning(
+            "2021 Census population file not found (%s) — hiding per-resident "
+            "Transportation metrics",
+            census_population_2021_csv,
+        )
+
     # Lot-size join (property-info CSV) feeds TWO consumers: the neighbourhood
     # lot-acre denominator toggle (hood rollup, joined below) and the Glass-view
     # grid (export block). Merge once here so both share it; without the file
@@ -450,6 +470,7 @@ def run(
         permits=permits, permits_recent=permits_recent, permits_long=permits_long,
         lot_acres=lot_acres_hood,
         unit_costs=unit_costs,
+        population=population,
     )
 
     if png_out is not None:
@@ -626,6 +647,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="skip the development/infill activity lens (SPEC_development.md \"Lens A\")")
     p.add_argument("--schools-public-csv", type=Path, default=SCHOOLS_PUBLIC_CSV)
     p.add_argument("--schools-catholic-csv", type=Path, default=SCHOOLS_CATHOLIC_CSV)
+    p.add_argument("--census-population-2021-csv", type=Path, default=CENSUS_POPULATION_2021_CSV)
+    p.add_argument("--skip-population", action="store_true",
+                   help="skip the 2021 Census population denominator")
     p.add_argument("--skip-amenity-distance", action="store_true",
                    help="skip the grid's dist_lrt_m / dist_school_m columns")
     p.add_argument("--log-level", default="INFO", help="logging level (default INFO)")
@@ -666,6 +690,7 @@ def main(argv: list[str] | None = None) -> None:
         historical_csv=args.historical_csv,
         schools_public_csv=args.schools_public_csv,
         schools_catholic_csv=args.schools_catholic_csv,
+        census_population_2021_csv=None if args.skip_population else args.census_population_2021_csv,
         amenity_distances=not args.skip_amenity_distance,
         setback_m=args.setback_m,
         simplify_tolerance_m=args.simplify_tolerance_m,
