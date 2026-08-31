@@ -142,9 +142,9 @@
   </button>
 
   <div id="controls">
-  <!-- Two-level metric picker. Row 1 = WHICH QUANTITY (Revenue | Value); row 2
-       belongs to whichever quantity is selected, and the two rows are NOT the
-       same kind of thing:
+  <!-- Two-level metric picker. Row 1 = WHICH QUANTITY (Revenue | Value | Cost);
+       row 2 belongs to whichever quantity is selected, and the two rows are NOT
+       the same kind of thing:
          Revenue -> #revcut, WHICH CLASSES. Genuinely subsets — levy == res +
            nonres + farmland (DECISIONS 2026-07-18), so the cuts sum to Total.
          Value   -> #moneymode, WHICH LENS (Current | Change over time). Not a
@@ -153,11 +153,14 @@
            Edmonton's ASSESSMENT BASE, which is the value side — under Revenue
            it was offering a lens that reads a column Revenue doesn't own
            (moved out of the Options panel 2026-08-01).
+         Cost    -> modeled roads + fire service cost per acre, shown only when
+           the data file carries svc_cost_per_acre. It has no lot-acre variant.
        Exactly one row 2 shows at a time; syncMetricButtons owns both. -->
   <div id="toggle" class="panel">
     <div id="metric-row">
       <button data-metric="revenue" class="active" title="Municipal property-tax revenue per acre — what the land generates at Edmonton's class-differential mill rates. Pick which classes to count below.">Revenue</button>
       <button data-metric="value" title="Total assessed property value per acre — what the land is worth, not what it pays. Pick current or change-over-time below.">Value</button>
+      <button data-metric="cost" title="Modeled roads + fire service cost per acre — the two levy-funded services this project can measure. Not total city cost.">Cost</button>
     </div>
     <div id="revcut">
       <button data-revcut="revenue_per_acre" class="active" title="Every property class — the full municipal levy the land generates">Total</button>
@@ -704,6 +707,25 @@
                   "multi-unit points). Height is linear; colour is " +
                   "square-root–scaled to reveal the low end. Grey = set-aside " +
                   "land, or too little parcel land for a lot-acre value.",
+      },
+      svc_cost_per_acre: {
+        key: "svc_cost_per_acre",
+        title: "Edmonton: Modeled Service Cost per Acre",
+        blurb: "Height and colour show the modeled roads + fire service cost " +
+               "a neighbourhood's land entails, divided by neighbourhood area. " +
+               "This is not total city cost: police, parks, transit, libraries " +
+               "and other services are not included. Height is linear; colour " +
+               "is square-root–scaled to reveal the low end. Grey = set-aside " +
+               "natural/undeveloped land, excluded from the scale.",
+        legendLabel: "Modeled roads + fire cost per acre",
+        legendMin: "$0",
+        legendMax: "$12k+",
+        colorClamp: 12_000,
+        elevationScale: 0.14,
+        transform: "sqrt",
+        fmt: fmtMoney,
+        supportsLot: false,
+        supportsGrid: false,
       },
       value_per_acre: {
         key: "value_per_acre",
@@ -1552,8 +1574,11 @@
     // Both the Glass grid file and the neighbourhood GeoJSON carry the *_per_lot_acre
     // variants; the denominator toggle (state.denom) selects between them in
     // both the Glass and Money views.
+    const supportsLot = m => METRICS[m] && METRICS[m].supportsLot !== false;
+    const supportsGrid = m => METRICS[m] && METRICS[m].supportsGrid !== false;
     const lotKey = m => m.replace("_per_acre", "_per_lot_acre");
-    const gridColKey = () => state.denom === "lot" ? lotKey(state.metric) : state.metric;
+    const gridColKey = () => state.denom === "lot" && supportsLot(state.metric)
+      ? lotKey(state.metric) : state.metric;
 
     // Amenity bands (SPEC_development.md "Amenity distance"). ⚠️ CONVENTIONS,
     // NOT FINDINGS — 600 m is the transit-oriented-development walkshed and
@@ -1592,7 +1617,8 @@
       return (gridData.cellsFor[colKey] ??=
         gridData.cells.filter(c => c[col] != null));
     };
-    const moneyColKey = () => state.denom === "lot" ? lotKey(state.metric) : state.metric;
+    const moneyColKey = () => state.denom === "lot" && supportsLot(state.metric)
+      ? lotKey(state.metric) : state.metric;
 
     // Glass grid scale anchors, per metric + denominator, computed once from
     // the fetched cells (so they track weekly refreshes, like ratioScale):
@@ -1696,7 +1722,8 @@
     // The money blurb under the active denominator (ground = the metric's own
     // prose, lot = its lotBlurb), with the colour-transform clause kept honest.
     const moneyBlurb = () => withColourClause(
-      state.denom === "lot" ? METRICS[state.metric].lotBlurb : METRICS[state.metric].blurb);
+      state.denom === "lot" && supportsLot(state.metric)
+        ? METRICS[state.metric].lotBlurb : METRICS[state.metric].blurb);
 
     // Per-feature fill: set-aside hoods grey, everything else the ramp colour at
     // the metric clamp.
@@ -4911,7 +4938,7 @@
       if (p.is_set_aside)
         return `<span class="muted">Set aside — ${esc(p.set_aside_reason)}</span>`;
       const cfg = METRICS[state.metric];
-      const lot = state.denom === "lot";
+      const lot = state.denom === "lot" && supportsLot(state.metric);
       const v = p[lot ? lotKey(state.metric) : cfg.key];
       return v == null
         ? `<span class="muted">too little parcel land for a lot-acre value</span>`
@@ -5152,7 +5179,7 @@
         };
       }
       const cfg = METRICS[state.metric];
-      const lot = state.denom === "lot";
+      const lot = state.denom === "lot" && supportsLot(state.metric);
       const colKey = lot ? lotKey(state.metric) : cfg.key;
       const pf = p.parcel_frac != null
         ? `<br/><span class="muted">parcel land ${Math.round(p.parcel_frac * 100)}% of area</span>` : "";
@@ -5329,6 +5356,7 @@
     // that lotKey()/moneyColKey()/buildLayers already derive from state.metric.
     const REV_CUTS = ["revenue_per_acre", "res_revenue_per_acre", "nonres_revenue_per_acre"];
     const isRevenue = m => REV_CUTS.includes(m);
+    const isCost = m => m === "svc_cost_per_acre";
 
     // Which revenue cut to restore when Revenue is re-selected from Value.
     // Sticky within the session, Total on load (Peter, 2026-07-26): returning to
@@ -5349,8 +5377,9 @@
     // state is read off the view rather than stored twice.
     function syncMetricButtons() {
       const rev = isRevenue(state.metric);
+      const cost = isCost(state.metric);
       document.querySelectorAll("#metric-row button").forEach(b =>
-        b.classList.toggle("active", b.dataset.metric === (rev ? "revenue" : "value")));
+        b.classList.toggle("active", b.dataset.metric === (rev ? "revenue" : cost ? "cost" : "value")));
       const anyCut = REV_CUTS.slice(1).some(k => {
         const b = document.querySelector(`#revcut button[data-revcut="${k}"]`);
         return b && getComputedStyle(b).display !== "none";
@@ -5359,7 +5388,7 @@
       document.querySelectorAll("#revcut button").forEach(b =>
         b.classList.toggle("active", b.dataset.revcut === state.metric));
       document.getElementById("moneymode").style.display =
-        !rev && temporalData != null ? "flex" : "none";
+        !rev && !cost && temporalData != null ? "flex" : "none";
       document.querySelectorAll("#moneymode button").forEach(b =>
         b.classList.toggle("active",
           b.dataset.moneymode === (state.view === "change" ? "change" : "current")));
@@ -5537,12 +5566,27 @@
     function applyMetric(metric) {
       if (!METRICS[metric]) return;
       if (isRevenue(metric)) lastRevCut = metric;
+      if (!supportsLot(metric) && state.denom === "lot") state.denom = "ground";
       if (metric === state.metric) { syncMetricButtons(); return; }
       state.metric = metric;
       syncMetricButtons();
       syncPinnedPanel(); // Revenue <-> Value swaps the panel's whole content
       closePeek();       // ...and so does the card; see applyView's note
+      if (!supportsGrid(metric) && state.view === "glass") {
+        applyView("money");
+        return;
+      }
       if (state.view !== "money" && state.view !== "glass") return;
+      if (state.view === "money") {
+        const detailShow = supportsGrid(metric);
+        const denomShow = state.hasHoodLot && supportsLot(metric);
+        document.getElementById("layers").style.display =
+          (detailShow || denomShow) ? "flex" : "none";
+        document.getElementById("moneydetail-hd").style.display = detailShow ? "block" : "none";
+        document.getElementById("moneydetail").style.display = detailShow ? "flex" : "none";
+        document.getElementById("denom-hd").style.display = denomShow ? "block" : "none";
+        document.getElementById("denom").style.display = denomShow ? "flex" : "none";
+      }
       const cfg = METRICS[metric];
       overlay.setProps({ layers: buildLayers() });
       document.getElementById("title-h").textContent = cfg.title;
@@ -5883,7 +5927,7 @@
         // here, so the aside always means the plane's set-aside grey.
         // With the lot denominator the label and anchors follow gridColKey().
         const grid = gridData && (gridData.columns[gridColKey()] ?? -1) >= 0;
-        const lot = grid && state.denom === "lot";
+        const lot = grid && state.denom === "lot" && supportsLot(state.metric);
         document.getElementById("legend-label").textContent =
           (lot ? cfg.legendLabel.replace("per acre", "per lot acre") : cfg.legendLabel) +
           (grid ? " (100 m cells)" : "");
@@ -5896,7 +5940,7 @@
         // Money view. The denominator toggle relabels ("per acre" -> "per lot
         // acre") and re-anchors the legend max to the lot-acre clamp (moneyScale).
         const sc = moneyScale();
-        const lot = state.denom === "lot";
+        const lot = state.denom === "lot" && supportsLot(state.metric);
         document.getElementById("legend-label").textContent =
           lot ? cfg.legendLabel.replace("per acre", "per lot acre") : cfg.legendLabel;
         document.getElementById("legend-min").textContent = cfg.legendMin;
@@ -6080,6 +6124,7 @@
     // Money's metric / colour / denominator, so it is a render-mode here rather
     // than a top-level view; applyView keeps the Money #views button active.
     function applyMoneyDetail(mode) {
+      if (mode === "grid" && !supportsGrid(state.metric)) return;
       const target = mode === "grid" ? "glass" : "money";
       if (target !== state.view) applyView(target);
     }
@@ -6218,10 +6263,10 @@
       // Money/Glass open the layers panel for the Detail (Neighbourhood / 100 m
       // grid) toggle, always — glass has a graceful fallback if the grid file is
       // absent, so the toggle is safe to offer unconditionally.
-      const moneyDetailShow = v === "money" || v === "glass";
+      const moneyDetailShow = (v === "money" || v === "glass") && supportsGrid(state.metric);
       // The Money view also carries the acre denominator toggle when the data
       // carries the lot-acre columns.
-      const moneyDenom = v === "money" && state.hasHoodLot;
+      const moneyDenom = v === "money" && state.hasHoodLot && supportsLot(state.metric);
       // The development AND infill views open the layers panel for the
       // unit/permit sub-metric picker (in infill it drives the activity side of
       // the mismatch) — only when the data carries the permit-per-acre column.
@@ -6328,8 +6373,8 @@
       // The denominator toggle shows in Glass (when the grid file carries the
       // lot-acre columns) and in Money (when the hood GeoJSON does). The header
       // names the unit being divided in each view.
-      const denomShow = (v === "glass" && gridData && gridData.hasLot)
-                     || (v === "money" && state.hasHoodLot);
+      const denomShow = (v === "glass" && gridData && gridData.hasLot && supportsLot(state.metric))
+                     || (v === "money" && state.hasHoodLot && supportsLot(state.metric));
       document.getElementById("denom-hd").textContent =
         v === "glass" ? "Spike denominator" : "Denominator";
       document.getElementById("denom-hd").style.display = denomShow ? "block" : "none";
@@ -6489,13 +6534,16 @@
       // CUT (revenue) — what actually names a column — or the LENS (value).
       document.querySelectorAll("#metric-row button").forEach(b =>
         b.addEventListener("click", () => {
-          const rev = b.dataset.metric === "revenue";
-          applyMetric(rev ? lastRevCut : "value_per_acre");
-          // Revenue owns no change lens, so picking it has to leave the change
-          // view the way applyMoneyMode("current") would. Order matters:
+          const kind = b.dataset.metric;
+          const metric = kind === "revenue" ? lastRevCut
+            : kind === "cost" ? "svc_cost_per_acre"
+            : "value_per_acre";
+          applyMetric(metric);
+          // Revenue and Cost own no change lens, so picking either has to leave
+          // the change view the way applyMoneyMode("current") would. Order matters:
           // applyMetric only marks state outside money/glass, so applyView is
           // what renders — and it reads the metric we just set for the title.
-          if (rev && state.view === "change") applyView("money");
+          if (kind !== "value" && state.view === "change") applyView("money");
         }));
       document.querySelectorAll("#revcut button").forEach(b =>
         b.addEventListener("click", () => applyMetric(b.dataset.revcut)));
@@ -6768,6 +6816,7 @@
         document.querySelector('#services .svc[data-service="servicecost"]').style.display = "none";
         state.services.servicecost = false;
         document.querySelector('#ratio-denom button[data-ratio-denom="servicecost"]').style.display = "none";
+        document.querySelector('#metric-row button[data-metric="cost"]').style.display = "none";
       }
       // A group caption with every row under it hidden is a heading over
       // nothing — hide it too. Walks siblings to the next caption, so it stays

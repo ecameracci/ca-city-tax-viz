@@ -3,8 +3,9 @@
 // #toggle used to be a flat row of four peers — Revenue · Value · Residential $
 // · Non-res $ — which misrepresented the data: `levy == res + nonres + farmland`
 // (DECISIONS 2026-07-18), so the last two are SUBSETS of Revenue, not siblings
-// of it. It is now Revenue | Value on top, with Total | Residential |
-// Non-residential nested underneath, shown only under Revenue.
+// of it. It is now Revenue | Value | Cost on top, with Total | Residential |
+// Non-residential nested underneath, shown only under Revenue. Cost is a leaf,
+// shown only when the data file carries svc_cost_per_acre.
 //
 // The invariant worth protecting: METRICS stays flat and `state.metric` stays
 // the single source of truth — only the chrome is hierarchical. So every check
@@ -49,6 +50,8 @@ const CUTS = {
       metricRow: row('#metric-row button'),
       cuts: row('#revcut button'),
       cutRowShown: document.getElementById('revcut').offsetParent !== null,
+      moneyDetailShown: document.getElementById('moneydetail').offsetParent !== null,
+      denomShown: document.getElementById('denom').offsetParent !== null,
       podShown: document.getElementById('toggle').offsetParent !== null,
       title: document.getElementById('title-h').textContent,
       legend: document.querySelector('#legend .lbl')?.textContent
@@ -63,8 +66,8 @@ const CUTS = {
 
   // --- structure: two rows, right buttons, no leftover "$" labels
   const p0 = await probe();
-  check('metric row is exactly Revenue | Value',
-        p0.metricRow.map(b => b.label).join('|') === 'Revenue|Value',
+  check('metric row is exactly Revenue | Value | Cost',
+        p0.metricRow.map(b => b.label).join('|') === 'Revenue|Value|Cost',
         p0.metricRow.map(b => b.label).join('|'));
   check('cut row is exactly Total | Residential | Non-residential',
         p0.cuts.map(b => b.label).join('|') === 'Total|Residential|Non-residential',
@@ -114,6 +117,19 @@ const CUTS = {
   check('[Value] no cut is left marked active', pv.cuts.every(b => !b.active));
   oneActive(pv, 'Value');
 
+  // --- Cost is also a leaf, and selects the modeled roads+fire service-cost column
+  await page.click('#metric-row button[data-metric="cost"]');
+  await page.waitForTimeout(2500);
+  const pc = await probe();
+  check('[Cost] state.metric is the modeled service-cost column', pc.metric === 'svc_cost_per_acre', pc.metric);
+  check('[Cost] Cost is active in the parent row', pc.metricRow.find(b => b.key === 'cost').active === true);
+  check('[Cost] cut row HIDES (cost has no res/nonres cuts)', pc.cutRowShown === false);
+  check('[Cost] detail row HIDES (cost has no 100 m grid column)', pc.moneyDetailShown === false);
+  check('[Cost] denom row HIDES (cost has no lot-acre column)', pc.denomShown === false);
+  check('[Cost] no cut is left marked active', pc.cuts.every(b => !b.active));
+  check('[Cost] title names service cost', /Service Cost/i.test(pc.title), pc.title);
+  oneActive(pc, 'Cost');
+
   // --- returning to Revenue restores the cut you left, not a silent reset
   await page.click('#metric-row button[data-metric="revenue"]');
   await page.waitForTimeout(2500);
@@ -129,6 +145,7 @@ const CUTS = {
 
   // --- real clicks (the JS-.click() suites cannot see pointer-events problems)
   for (const sel of ['#metric-row button[data-metric="value"]',
+                     '#metric-row button[data-metric="cost"]',
                      '#metric-row button[data-metric="revenue"]',
                      '#revcut button[data-revcut="revenue_per_acre"]']) {
     const el = page.locator(sel);
@@ -139,7 +156,8 @@ const CUTS = {
     }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
     check(`hit-test reaches ${sel.match(/"(.*?)"/)[1]}`,
           top === (sel.includes('revcut') ? 'revenue_per_acre'
-                   : sel.includes('value') ? 'value' : 'revenue'), `topmost=${top}`);
+                   : sel.includes('value') ? 'value'
+                   : sel.includes('cost') ? 'cost' : 'revenue'), `topmost=${top}`);
   }
 
   // --- the picker still works in Money's 100 m grid (the grid carries the cuts)
