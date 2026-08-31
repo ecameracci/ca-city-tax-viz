@@ -1,0 +1,857 @@
+/* Extracted from web/index.html (2026-07-29). Loaded by both builds:
+   the public root copies the whole web/ tree, and /full/ resolves this
+   via its <base href="../" />. See scripts/build_site.py. */
+html, body { margin: 0; height: 100%; background: #0a0a0f; }
+#map { position: absolute; inset: 0; }
+
+/* Loading overlay. z-index 9998 clears the app's own stack (max 5) and stays
+   just under the build badge's 9999, so the beta label reads through it. */
+#loading {
+  position: absolute; inset: 0; z-index: 9998;
+  display: flex; align-items: center; justify-content: center;
+  background: #0a0a0f;
+  color: #e8e8ef;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  opacity: 1; transition: opacity 350ms ease;
+}
+#loading.is-hidden { opacity: 0; }
+/* Removed from the hit-testing tree the moment the fade starts, so a fast
+   reader cannot click the overlay instead of the control underneath it.
+   ⚠️ The fade-end handler also sets display:none — pointer-events alone is not
+   enough, verify-controls-clickable.js checks real clickability. */
+#loading.is-hidden, #loading[hidden] { pointer-events: none; }
+/* Sized against the real dwell time (~560ms up, faded by ~900ms): the title
+   carries it, the blurb is one line, and the status text sits below the
+   spinner as the smallest thing on screen — it is a debugging aid, not the
+   message. max-width caps the measure so the blurb wraps to a readable column
+   instead of running the full viewport; it is not a promise of one line, and
+   this box cannot check that — it has three font families and none of the
+   stack, so `sans-serif` falls back to mono and every width here reads long. */
+#loading-box { text-align: center; max-width: 30rem; padding: 0 24px; }
+/* text-wrap: balance evens out a wrap instead of orphaning the last word, which
+   matters because the wrap point is font-dependent and cannot be checked here.
+   Ignored by browsers that lack it — the text just wraps normally. */
+#loading-title {
+  margin: 0 0 6px; font-size: 19px; font-weight: 600; letter-spacing: 0.2px;
+  text-wrap: balance;
+}
+#loading-blurb {
+  margin: 0 0 22px; font-size: 12.5px; line-height: 1.5; color: #9a9ab0;
+  text-wrap: balance;
+}
+#loading-spinner {
+  width: 28px; height: 28px; margin: 0 auto 12px;
+  border: 3px solid #2a2a35; border-top-color: #8ab4f8; border-radius: 50%;
+  animation: loading-spin 900ms linear infinite;
+}
+#loading.is-error #loading-spinner { display: none; }
+#loading-text { margin: 0; font-size: 12px; letter-spacing: 0.01em; color: #7d7d92; }
+/* In the error state this stops being a progress note and becomes the whole
+   message, so it takes the foreground the spinner just vacated. */
+#loading.is-error #loading-text { font-size: 13px; color: #e8e8ef; }
+#loading-retry {
+  margin-top: 12px; padding: 6px 14px;
+  background: #1b1b24; color: #e8e8ef;
+  border: 1px solid #3a3a48; border-radius: 4px;
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+#loading-retry:hover { background: #24242f; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+/* A spinner that never stops is a problem for vestibular sensitivity, and the
+   status text carries the same information without it. */
+@media (prefers-reduced-motion: reduce) {
+  #loading-spinner { animation: none; border-top-color: #2a2a35; }
+  #loading { transition: none; }
+}
+.panel {
+  position: absolute; z-index: 1; color: #e8e8ef;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  pointer-events: none;
+}
+/* A second quick tap on a CONTROL is a second press, not a zoom gesture.
+   iOS Safari keeps double-tap-to-zoom even on a device-width viewport, so
+   tapping "rotate" twice in a row — the natural way to rotate further —
+   zoomed the whole page instead. Reported by Peter for the compass buttons
+   specifically, and it applies to every control.
+   `manipulation` disables ONLY double-tap zoom on these elements; pinch
+   zoom is untouched everywhere, so the page stays zoomable and this is not
+   the `user-scalable=no` accessibility trap (WCAG 1.4.4). It also drops the
+   legacy ~300ms tap delay, so the controls feel quicker.
+   Set at BOTH levels on purpose, and the redundancy is the point:
+   - the chrome ROOTS catch double-taps on non-interactive text, which iOS
+     also zooms — the title blurb and the legend are the ones you actually
+     hit by accident. (`#controls` is not redundant with `.panel`: #optpanel
+     and its fold button are not panels.)
+   - the CONTROLS themselves, because the roots alone would rely on
+     touch-action resolving against ancestors. That is what the spec says
+     and what browsers do, but it is not an inherited property, so nothing
+     reachable from this box can confirm it — and a control that silently
+     missed out is exactly the reported bug. Stating it on the element is
+     both checkable here and independent of that resolution.
+   The MAP is deliberately excluded — double-tap to zoom is the standard
+   gesture there (Google/Apple Maps, Mapbox, MapLibre's default), and #map
+   is a sibling of all of these, so it keeps it. */
+.panel, #controls, #botleft, #loading { touch-action: manipulation; }
+.panel button, .panel input, .panel label,
+#controls button, #controls input, #controls label,
+#botleft button, #botleft input,
+#loading button { touch-action: manipulation; }
+#title { top: 20px; left: 22px; max-width: 360px; }
+#title h1 { margin: 0 0 4px; font-size: 19px; font-weight: 600; letter-spacing: 0.2px; }
+#title p  { margin: 0; font-size: 12.5px; line-height: 1.5; color: #9a9ab0; }
+/* Right-side control stack: a single flex column, so pods can show/hide per
+   view without leaving gaps. Tier order (View → Variant → Presentation →
+   accessibility) is set with `order:` rather than DOM order. The map stays
+   clickable through the wrapper — pointer-events flip back on each pod. */
+#controls {
+  position: absolute; top: 20px; right: 22px; z-index: 1;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  pointer-events: none;
+}
+#controls > div { position: static; right: auto; top: auto; }
+#views    { order: 1; } /* ① view (T1) */
+#toggle   { order: 2; } /* ② variant (T2) — Money metric, money/glass only */
+#optpanel { order: 3; } /* ③ foldable Options panel (variant + presentation) */
+/* ④ full-build-only opener for the citywide budget panel. Last because it is
+   not a control over the map at all — it opens a separate readout. Costs no
+   offset arithmetic: #controls children are position:static and flow, unlike
+   the bottom-right pods whose menus clear each other with fixed percentages. */
+#budget-pod { order: 4; }
+/* display:flex + interactivity on all real pods; border/bg chrome only on the
+   top-level ones + the a11y popover. The inner coloradj/lens/layers read as
+   borderless sections of the one #optpanel. */
+#toggle, #views, #optpanel, #coloradj, #hoodmode, #a11y, #a11y-menu, #about, #about-menu, #budget-pod {
+  display: flex; pointer-events: auto;
+}
+#toggle, #views, #optpanel, #a11y, #a11y-menu, #about, #about-menu, #budget-pod {
+  background: rgba(12,12,20,0.7); border: 1px solid #2a2a3a;
+  border-radius: 6px; overflow: hidden;
+}
+/* The foldable Options panel: a header button (#opt-fold) toggles #opt-body,
+   which stacks the per-view detail/denominator sections (#layers) above the
+   colour-scaling pod. Was a two-column row until 2026-07-26, when the
+   residential lens was removed and #coloradj moved to the bottom. */
+#optpanel { flex-direction: column; align-items: stretch; }
+/* min-width widens the FOLDED header leftward (the pod is right-anchored, so
+   extra width grows to the left) — a bigger target that reaches away from the
+   corner while its right edge stays flush with the bars above. No effect when
+   open: the body is wider than the minimum. */
+#opt-fold {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 8px 14px; min-width: 180px; cursor: pointer; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; transition: background 0.12s, color 0.12s;
+}
+#opt-fold:hover { color: #e8e8ef; }
+/* Caret sized for legibility, not hit area — the whole #opt-fold button is
+   the target. 19px ≈ √3 × 11px, i.e. ~3× the glyph area (Peter's ask).
+   line-height:1 keeps the taller glyph from growing the button row. */
+#opt-caret { font-size: 19px; line-height: 1; color: #6a6a80; display: inline-block; transition: transform 0.15s; }
+#optpanel.folded #opt-caret { transform: rotate(-90deg); }
+#optpanel.folded #opt-body { display: none; }
+#opt-body {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 8px; padding: 2px 10px 8px; border-top: 1px solid #22222e;
+}
+#optpanel #layers { padding: 0; }
+/* The inner pods carry class="panel" (position:absolute; pointer-events:none);
+   they're no longer direct #controls children, so re-static them to flow inside
+   #opt-body and restore pointer-events (else #layers' Detail/Denominator buttons
+   are unclickable — the flip list at the top only covers #coloradj). */
+#optpanel .panel { position: static; right: auto; top: auto; pointer-events: auto; }
+/* Colour Adjustment: about HOW colour is RENDERED, not what you're looking
+   at, which is why it sits last in the panel. It drives the money/glass sqrt
+   transform (scaleT) only and HIDES in the other views (greyed reads as
+   broken — 2026-07-25). Height stays linear either way. */
+#coloradj { align-items: stretch; }
+/* #hoodmode shares every rule below: same "the label IS the state" pod, one row
+   down. Hidden HERE rather than from JS — the shared display:flex above would
+   otherwise paint it for the moment before map load runs, and in the public
+   build (where the history is never fetched) it must never appear at all. JS
+   reveals it with an inline style once temporal.json lands. */
+#hoodmode { align-items: stretch; display: none; }
+#coloradj button, #hoodmode button {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+#coloradj button:hover, #hoodmode button:hover { color: #e8e8ef; }
+#coloradj button.active, #hoodmode button.active { background: #fcd278; color: #16111a; font-weight: 600; }
+/* Fallback only: the pod hides where it doesn't apply (syncColorAdjust),
+   so a dead-but-visible button should never paint. */
+#coloradj button:disabled, #coloradj button:disabled:hover {
+  color: #4a4a5e; cursor: default; background: transparent; font-weight: 400;
+}
+/* No state caption: the button LABEL is the readout ("sqrt scaling" /
+   "linear"). The caption said the same thing at twice the width and made the
+   pod stick out; the full explanation lives in the button's title, and the
+   title blurb already calls out the linear case. */
+/* #views is Tier 1 — the primary control — so it is deliberately the LARGEST
+   type in the stack (14px vs the metric bar's 12.5px and the modifiers'
+   11.5px). It used to be the smallest, which is why it under-read as chrome
+   rather than as the main navigation. Phones scale it back down in the
+   @media block so the row still fits without wrapping. */
+#views button {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 9px 18px; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+#views button:hover { color: #e8e8ef; }
+#views button.active { background: #fcd278; color: #16111a; font-weight: 600; }
+#layers {
+  flex-direction: column; padding: 6px 12px; gap: 4px;
+  font-size: 11.5px; color: #9a9ab0; display: none; /* opened per view — applyView shows the relevant sections */
+}
+#layers .hd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #6a6a80; }
+#layers label { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 2px 0; }
+#layers label:hover { color: #e8e8ef; }
+#layers input { accent-color: #fcd278; margin: 0; }
+#layers input[type="range"] { width: 86px; cursor: pointer; }
+#layers .pct { min-width: 34px; text-align: right; color: #6a6a80; font-variant-numeric: tabular-nums; }
+/* Services-view per-service rows — hidden outside the services view.
+   Each row: an on/off checkbox; the "colour" radio picks which service
+   drives the ramp and only shows when 2+ services are checked. */
+#services-hd, #services { display: none; }
+#services .svc { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#services .svc-colour { color: #6a6a80; font-size: 10.5px; display: none; }
+#services .svc-colour:hover { color: #e8e8ef; }
+/* Group captions (Transportation / Other services). Labels only — they gate
+   nothing and carry no control; they just stop the six rows reading as one
+   undifferentiated list. First one needs no top margin. */
+#services .svc-group { color: #6a6a80; font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase; margin: 7px 0 1px; }
+#services .svc-group:first-child { margin-top: 0; }
+/* Glass-view spike denominator (ground vs lot acres) — hidden outside
+   glass and on data files without the lot-acre columns. The ratio-view
+   denominator picker (#ratio-denom) shares the styling and the
+   default-hidden rule. */
+#denom-hd, #denom, #ratio-denom-hd, #ratio-denom, #transport-hd, #transport, #transport-denom-hd, #transport-denom { display: none; }
+/* Uses-view residential-prisms toggle — hidden outside the uses view
+   (the #denom default-hidden pattern). */
+#uses-prisms-hd, #uses-prisms { display: none; }
+/* Development-view sub-metric picker (dwelling units vs permits per acre)
+   and window picker (last 5 yr vs 3 yr) — share the #denom button styling +
+   default-hidden pattern; shown only in the development view (metric always,
+   window only when the data carries the _3yr columns).
+   #moneydetail: Money's Neighbourhood/100 m-grid (glass) render toggle.
+   #devdetail: Development's Neighbourhood/100 m-grid render toggle.
+   #devmode: Development's Housing/Infill lens toggle (full build only).
+   #chgwindow: the change lens's 2012/2019 window picker. Its Current/Change
+   sibling used to live here as #moneymode; it moved into #toggle as Value's
+   second row (2026-08-01), so the window picker is the section's only member
+   and the "Window" header now stands alone. */
+#devmetric-hd, #devmetric, #devwindow-hd, #devwindow,
+#moneydetail-hd, #moneydetail, #devdetail-hd, #devdetail,
+#devmode-hd, #devmode,
+#chgwindow-hd, #chgwindow,
+/* The Lab's sections start hidden for the same reason #moneymode does: #layers
+   is already open in the default Money view, so a `flex` default would flash
+   the Lab's controls under a lens they do not belong to. syncLabControls
+   reveals them. */
+#labpick-hd, #labpick, #labcut-hd, #labcut { display: none; }
+#denom, #ratio-denom, #transport, #transport-denom, #devmetric, #devwindow, #moneydetail, #devdetail, #devmode, #chgwindow, #labpick, #labcut { border: 1px solid #2a2a3a; border-radius: 5px; overflow: hidden; margin-bottom: 2px; }
+#denom button, #ratio-denom button, #transport button, #transport-denom button, #devmetric button, #devwindow button, #moneydetail button, #devdetail button, #devmode button, #chgwindow button, #labpick button, #labcut button {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 4px 10px; cursor: pointer; flex: 1; transition: background 0.12s, color 0.12s;
+}
+#denom button:hover, #ratio-denom button:hover, #transport button:hover, #transport-denom button:hover, #devmetric button:hover, #devwindow button:hover, #moneydetail button:hover, #devdetail button:hover, #devmode button:hover, #chgwindow button:hover, #labpick button:hover, #labcut button:hover { color: #e8e8ef; }
+#denom button.active, #ratio-denom button.active, #transport button.active, #transport-denom button.active, #devmetric button.active, #devwindow button.active, #moneydetail button.active, #devdetail button.active, #devmode button.active, #chgwindow button.active, #labpick button.active, #labcut button.active { background: #fcd278; color: #16111a; font-weight: 600; }
+#toggle button, #palette button {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 7px 15px; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+/* Two-level metric picker: #toggle stacks its two rows instead of being one
+   flat row of buttons. The row-2 rows read as SUBORDINATE to the metric row —
+   a hairline separator plus smaller, dimmer type — so "Total / Residential /
+   Non-residential" is visibly *inside* Revenue rather than a peer of it, and
+   "Current / Change over time" the same way inside Value.
+   That subordination is the whole point of the regroup; keep it if these
+   rules are ever restyled.
+   #moneymode starts HIDDEN, unlike #revcut: it is gated on temporal.json,
+   which lands after first paint, so a `display: flex` default would flash a
+   lens that may not exist. syncMetricButtons reveals it. */
+#toggle { flex-direction: column; align-items: stretch; }
+#metric-row, #revcut { display: flex; }
+#moneymode { display: none; }
+/* Both rows share the pod's width (it is set by whichever row is wider —
+   the 3-up cut row). Without flex:1 the 2-up metric row left ~127px of dead
+   space beside Revenue, which read as an empty cell rather than a heading. */
+#metric-row button { flex: 1; }
+#revcut, #moneymode { border-top: 1px solid #2a2a3a; }
+#revcut button, #moneymode button {
+  font-size: 11px; padding: 5px 12px; flex: 1; color: #8a8a9e;
+  white-space: nowrap;
+}
+/* "beta" tag on the Lab button. The public build never renders that button at
+   all (the FULL_BUILD gate hides it), so this marks the work as unfinished for
+   the specialist audience that CAN reach it — the point is that Lab must not
+   read as a peer of the five published views beside it. Inherits the
+   active-state colours rather than fixing its own, so it stays legible on the
+   amber highlight. */
+.beta {
+  margin-left: 5px; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid currentColor; font-size: 8.5px; letter-spacing: 0.04em;
+  text-transform: uppercase; vertical-align: 1px; opacity: 0.75;
+}
+#palette button { padding: 6px 12px; font-size: 11.5px; }
+#toggle button:hover, #palette button:hover { color: #e8e8ef; }
+#toggle button.active, #palette button.active { background: #fcd278; color: #16111a; font-weight: 600; }
+/* Accessibility menu: a "Display" button that opens a small popover holding
+   the colour-ramp picker (Inferno default; Cividis is the CVD-safe ramp) and
+   the neighbourhood-labels toggle. Kept off the always-visible chrome — one
+   tap away for those who need it. Anchored to its button; overflow visible so
+   the popover isn't clipped by the pod. */
+#a11y { position: absolute; right: 22px; bottom: 40px; z-index: 1; overflow: visible; } /* clears the MapLibre attribution */
+#a11y-btn {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 6px 12px; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+#a11y-btn:hover { color: #e8e8ef; }
+#a11y.open #a11y-btn { background: #fcd278; color: #16111a; font-weight: 600; }
+/* ⚠️ CLEARS THE **STACK**, NOT JUST ITS OWN BUTTON. #about sits directly above
+   this pod in the same column (bottom: 68px vs 40px, both buttons 26px tall),
+   so the obvious `calc(100% + 6px)` — 6px above #a11y's own top — put the
+   menu's bottom 23px INSIDE the Data & Methods button. Measured 2026-08-02 at
+   1440x900, 390x844 and 360x780: identical overlap at all three, because both
+   offsets are fixed.
+   The two buttons share their font and padding, so `200%` is the pod's own
+   height counted twice (itself + #about's button) and the 8px is the 2px
+   inter-pod gap plus the 6px the menu already wanted. That tracks the shared
+   button styling instead of hardcoding 60px.
+   ⚠️ NOT fixed with a z-index bump like `#about.open`, though the asymmetry
+   looks like the cause: that paints the menu OVER the Data & Methods button,
+   which buries a control rather than clearing it — the opposite of the rule
+   #temporal's left-column home was chosen for. */
+#a11y-menu {
+  display: none; position: absolute; bottom: calc(200% + 8px); right: 0;
+  flex-direction: column; padding: 6px 12px; gap: 4px;
+  font-size: 11.5px; color: #9a9ab0; min-width: 150px;
+}
+#a11y.open #a11y-menu { display: flex; }
+#a11y-menu .hd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #6a6a80; }
+#palette { border: 1px solid #2a2a3a; border-radius: 5px; overflow: hidden; margin-bottom: 2px; }
+#palette button { flex: 1; padding: 4px 8px; font-size: 11px; }
+#a11y-menu label { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 2px 0; }
+#a11y-menu label:hover { color: #e8e8ef; }
+#a11y-menu input { accent-color: #fcd278; margin: 0; }
+/* Sources & attribution pod, stacked directly above the Display pod in the
+   same bottom-right column. The button LABEL carries the credit rather than
+   hiding it behind the click: every dataset the map renders is City of
+   Edmonton open data under the Open Government Licence, which asks for
+   visible attribution — a link you have to find first doesn't attribute
+   anything. (Same "the label is the readout" idiom as #coloradj.) The
+   popover behind it holds what the label can't: the modeled-not-billed
+   caveat, the vintages, and the methods/source links. Same open/close
+   mechanics as #a11y; opening either closes the other, since both menus
+   expand upward into the same space. */
+#about { position: absolute; right: 22px; bottom: 68px; z-index: 1; overflow: visible; }
+/* While open, lift the pod above the rest of the chrome. Everything on the
+   map sits at z-index 1, so paint order falls back to DOM order and #botleft
+   (compass, Center 2D/3D, legend) drew straight THROUGH the panel on a phone,
+   where the panel is tall enough to reach the bottom-left cluster. */
+#about.open { z-index: 5; }
+#about-btn {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 6px 12px; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+#about-btn:hover { color: #e8e8ef; }
+#about.open #about-btn { background: #fcd278; color: #16111a; font-weight: 600; }
+#about-menu {
+  display: none; position: absolute; bottom: calc(100% + 6px); right: 0;
+  flex-direction: column; padding: 9px 13px; gap: 7px;
+  font-size: 11.5px; line-height: 1.5; color: #9a9ab0; width: 310px;
+  text-align: left;
+  /* Denser than the 0.7 the control pods share: this is a paragraph of prose
+     to READ, not a strip of buttons, and at 0.7 the map (and the chrome
+     behind it on a phone) shows through the text. Matches .tip / #banner,
+     the other two text surfaces. */
+  background: rgba(12,12,20,0.92);
+  /* The pod grows with its content and is anchored to its button at the BOTTOM,
+     so anything added to it runs off the TOP of the screen rather than the
+     bottom — silently, because there is no scrollbar to notice. It was already
+     within ~112px of that at 720px tall before the budget section existed.
+     Cap it against the viewport and let it scroll instead. box-sizing is
+     load-bearing: max-height is content-box by default, so without this the
+     padding sits outside the cap and the pod overshoots by exactly 18px (the
+     #temporal lesson, DECISIONS.md 2026-08-02). */
+  box-sizing: border-box;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+}
+#about.open #about-menu { display: flex; }
+#about-menu .hd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #6a6a80; }
+#about-menu p { margin: 0; }
+#about-menu b { color: #e8e8ef; font-weight: 600; }
+#about-menu .muted { color: #6a6a80; }
+#about-menu a { color: #fcd278; text-decoration: none; }
+#about-menu a:hover { text-decoration: underline; }
+/* Bottom-left cluster: the compass row and the framing-preset buttons
+   stacked above the legend. The wrapper is the anchored element
+   (bottom-left); the legend goes static so the buttons sit above it and the
+   legend's variable height (category rows in some views) just pushes them
+   up — no manual offsets. */
+#botleft {
+  position: absolute; bottom: 22px; left: 22px; z-index: 1;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  /* The WRAPPER must not eat pointer events: its box spans the legend's full
+     width plus the gaps, and on a narrow screen it reaches across to the
+     bottom-right pods — it was intercepting clicks meant for the Sources
+     credit at 390px, and swallowing map drags in the bottom-left corner at
+     every size. Every interactive child (the compass buttons, Center 2D/3D)
+     already sets pointer-events:auto for itself, and the legend is inert, so
+     nothing needs it here. Same idiom as .panel / #controls. */
+  pointer-events: none;
+}
+#viewbtns { display: flex; gap: 8px; } /* Center 2D + Center 3D, side by side */
+#center2d, #recenter {
+  appearance: none; pointer-events: auto; cursor: pointer;
+  background: rgba(12,12,20,0.7); border: 1px solid #2a2a3a; border-radius: 6px;
+  color: #9a9ab0; padding: 6px 12px;
+  font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: background 0.12s, color 0.12s;
+}
+#center2d:hover, #recenter:hover { color: #e8e8ef; }
+#center2d.flat { background: #fcd278; color: #16111a; font-weight: 600; } /* gold = 2D engaged */
+/* Compass: the rotation cluster. It exists mostly to ADVERTISE that the map
+   rotates at all (drag-rotate is undiscoverable), so the arrows are explicit
+   buttons rather than a drag target. Icons are inline SVG, not glyphs — the
+   headless font lacks the curved-arrow codepoints, and ◀/▶ would read as
+   pan/next rather than rotate. */
+#compass { display: flex; align-items: center; gap: 6px; }
+#rot-ccw, #rot-cw, #tonorth {
+  appearance: none; pointer-events: auto; cursor: pointer; padding: 0;
+  background: rgba(12,12,20,0.7); border: 1px solid #2a2a3a;
+  color: #9a9ab0; display: grid; place-items: center;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#rot-ccw, #rot-cw { width: 30px; height: 30px; border-radius: 6px; }
+#tonorth { width: 30px; height: 30px; border-radius: 50%; }
+#rot-ccw:hover, #rot-cw:hover, #tonorth:hover { color: #e8e8ef; background: rgba(22,22,34,0.85); }
+#rot-ccw svg, #rot-cw svg { display: block; width: 16px; height: 16px; }
+/* The needle counter-rotates with the camera, so north on screen is north on
+   the needle. transform-origin is set explicitly: an SVG root's default
+   origin is not reliably its centre across engines. */
+#needle { display: block; width: 19px; height: 19px; transform-origin: 50% 50%; }
+#tonorth.north { border-color: #6a5a34; } /* already north-up — nothing to snap */
+#legend { position: static; font-size: 11.5px; color: #b8b8c8; }
+#legend .bar {
+  width: 200px; height: 10px; border-radius: 2px; margin: 6px 0 4px;
+  background: linear-gradient(90deg,
+    rgb(20,11,52), rgb(88,21,99), rgb(165,44,96), rgb(231,98,58), rgb(252,210,120));
+}
+#legend .scale { display: flex; justify-content: space-between; width: 200px; }
+#legend .aside {
+  display: flex; align-items: center; gap: 7px; margin-top: 9px; color: #9a9ab0;
+}
+#legend .aside .sw {
+  width: 12px; height: 12px; border-radius: 2px;
+  background: rgb(104,108,122); flex: 0 0 auto;
+}
+/* Categorical rows (uses view) — the gradient bar/scale hide, these show. */
+#legend-cats { display: none; }
+#legend .cat { display: flex; align-items: center; gap: 7px; margin-top: 5px; color: #9a9ab0; }
+#legend .cat .sw { width: 12px; height: 12px; border-radius: 2px; flex: 0 0 auto; }
+#banner {
+  top: 20px; left: 50%; transform: translateX(-50%);
+  max-width: 44%; pointer-events: auto; text-align: center;
+  background: rgba(40,30,12,0.92); border: 1px solid #6b5a2a; color: #f3e2b0;
+  border-radius: 6px; padding: 8px 14px; font-size: 12px; line-height: 1.45;
+  display: none;
+}
+.tip {
+  font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: rgba(12,12,20,0.92); color: #f0f0f6;
+  padding: 6px 9px; border-radius: 5px; border: 1px solid #2a2a3a;
+  max-width: 300px; /* long uses-view compositions wrap instead of running wide */
+}
+.tip b { color: #fcd278; }
+.tip .muted { color: #b8b8c8; }
+/* Mini stacked composition bar (uses-view tooltip). Segments flex-grow
+   proportional to their share; the 2px gaps read as the tooltip surface.
+   Also selected inside `#peek-read`: the peek card borrows this same markup
+   from viewTooltip, and scoped under `.tip` alone the bar loses `display:flex`
+   and collapses to nothing visible on a phone. */
+.tip .mixbar, #peek-read .mixbar, #temporal-chart .mixbar { display: flex; gap: 2px; width: 190px; height: 8px; margin: 6px 0 5px; border-radius: 2px; overflow: hidden; }
+.tip .mixbar span, #peek-read .mixbar span, #temporal-chart .mixbar span { border-radius: 1px; }
+/* The panel has 274px of content width where a tooltip has ~190, and the bar is
+   the panel's chart rather than a inline glyph — so it takes the full width and
+   the height the SVG chart it replaces would have had a share of. */
+#temporal-chart .mixbar { width: 100%; height: 11px; margin: 8px 0 9px; }
+/* Hover sparkline (temporal lens teaser). No axes, no labels — the muted row
+   beneath it carries first→last, which is what makes an unlabelled line
+   readable at all. `display:block` so the SVG's inline-baseline gap doesn't
+   open a ragged space above the row. */
+.tip .spark { display: block; margin: 5px 0 3px; }
+/* ===================================================================
+   MILL-RATE POD — the revenue map's own conversion factor, under #title.
+   Bare text like #title rather than a bordered box: it sits in the same column,
+   directly under it, and reads as a continuation of the caption instead of a
+   second kind of object.
+
+   THE POD YIELDS TO THE PANEL, and the rule is a sibling selector rather than a
+   JS toggle so the two can never both think they own the slot. It has to yield
+   to something: the column is genuinely full at laptop heights — MEASURED
+   2026-08-01, the open #temporal is 308px tall and clears the bottom-left
+   cluster by 211px at 1440x900 but only 79px at 1366x768 and 31px at 1280x720 —
+   and the money view's residential/non-residential cuts push #title 60px taller
+   than the Total cut it was sized against, which is what ruled out shifting the
+   panel down instead. `top` is set from the measured title box in JS for the
+   same reason (see syncMillRates); the value here is only the pre-paint start.
+   =================================================================== */
+/* 400px, wider than #title's 360: the caveat line fits on ONE line at 400 and
+   wraps to two at 380. Nothing sits to the right of this column until the
+   control stack at x~958, so the extra 40px is free. */
+#millrates { display: none; top: 206px; left: 22px; width: 400px; }
+body.mills #millrates { display: block; }
+/* Needs #millrates AFTER #temporal in the DOM — see the markup comment.
+   Desktop-only BY CONSTRUCTION, not by media query: below 640px the pod is a
+   CHILD of #title, so it is not #temporal's sibling and this cannot match.
+   ⚠️ That distinction was worth a bug. In the standalone phone form the pod WAS
+   a sibling, so this rule matched there too and switching the readout to panel
+   mode blanked the rates — pod at y≈207, bottom sheet at y≈799, nothing
+   contended, and they vanished anyway. The comment then said "desktop-only in
+   effect", which reasoned about the LAYOUT and not about the SELECTOR.
+   verify-millrates.js now asserts the rates survive panel mode on a phone, so
+   the property is checked however a future form happens to achieve it. */
+#temporal.open ~ #millrates { display: none; }
+#mill-head { font-size: 10.5px; color: #6a6a80; letter-spacing: 0.2px; }
+#mill-rows { font-size: 11.5px; line-height: 1.4; margin: 2px 0 3px; }
+/* The separator lives here, not in the markup, because the rates are one line
+   on desktop and a stacked list on a phone — a literal " · " in the HTML would
+   print as a stray character on every row of the stacked form. */
+#mill-rows span + span::before { content: " · "; color: #55556a; }
+/* The cut you are looking at is billed at the lit classes; the muted ones stay
+   on screen so the differential is readable, but must not compete with them. */
+#mill-rows .on { color: #9a9ab0; }
+#mill-rows .on b { color: #e8e8ef; font-weight: 600; }
+#mill-rows .off { color: #55556a; }
+#mill-note { font-size: 10.5px; color: #6a6a80; }
+
+/* ===================================================================
+   CITY BUDGET PANEL — experimental, full build only.
+   Shares the left column's second slot with #millrates, and the two are
+   mutually exclusive rather than stacked: both are 400px wide readouts
+   anchored at the same y, so showing both would overlap them outright.
+   #temporal wins over both, exactly as it already does over #millrates.
+   =================================================================== */
+#budget {
+  display: none; top: 206px; left: 22px; width: 400px;
+  pointer-events: auto; flex-direction: column; gap: 5px;
+  background: rgba(12,12,20,0.92); border: 1px solid #2a2a3a;
+  border-radius: 6px; padding: 9px 13px;
+  /* A ranked list of ~48 branches is far taller than the viewport, and this
+     pod is anchored at the TOP, so the overflow runs off the bottom silently.
+     box-sizing is load-bearing: max-height is content-box by default, so
+     without it the padding sits outside the cap (the #temporal lesson,
+     DECISIONS.md 2026-08-02, and #about-menu carries the same pair).
+     ⚠️ THE CAP CLEARS #botleft, IT DOES NOT MERELY FIT THE VIEWPORT. Capping
+     at the viewport alone put the list 117px THROUGH the compass, legend and
+     set-aside swatch — measured identically at 900/800/720, because both boxes
+     are anchored to the viewport bottom. #botleft's top is 100vh - 171, so the
+     budget is 206 (this pod's own top) + 171 + 12px of gap.
+     ⚠️ NOT fixed with a z-index bump, though #about.open uses one for the same
+     paint-order collision: that would paint the list OVER the legend, burying a
+     control instead of clearing it — the rule #temporal's home was chosen for. */
+  box-sizing: border-box;
+  max-height: calc(100vh - 389px);
+}
+/* #budget-body absorbs the cap and scrolls, so the head and close stay put. */
+#budget-body { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 5px; }
+body.budget #budget { display: flex; }
+body.budget #millrates { display: none; }
+#temporal.open ~ #budget { display: none; }
+#budget-head { font-size: 10.5px; color: #6a6a80; letter-spacing: 0.2px; }
+#budget .hd { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #6a6a80; }
+/* The rows reuse .revrow (label left, value right) rather than growing a
+   second row idiom — the budget rows ask the same "name · number" question
+   the revenue rows do. NO BAR, for the reason renderBudgetContext records:
+   a swatch squeezes the label column and wraps every row. */
+#budget-rows, #budget-other { font-size: 11.5px; line-height: 1.45; }
+#budget-rows b, #budget-other b { color: #e8e8ef; font-weight: 600; }
+#budget-note { font-size: 10.5px; color: #6a6a80; line-height: 1.45; }
+#budget-btn {
+  appearance: none; border: 0; background: transparent; color: #9a9ab0;
+  font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 6px 12px; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+#budget-btn:hover { color: #e8e8ef; }
+body.budget #budget-btn { background: #fcd278; color: #16111a; font-weight: 600; }
+/* Hidden on desktop, where the opener is beside the panel and lit; the phone
+   seam turns it on, because a bottom sheet is nowhere near its own button.
+   Sized there too — 24px and a fat pad, matching #temporal-close's touch form. */
+#budget-close {
+  display: none; position: absolute; top: 0; right: 0; z-index: 1;
+  appearance: none; border: 0; background: transparent; color: #6a6a80;
+  font-size: 24px; line-height: 1; padding: 10px 15px; cursor: pointer;
+}
+#budget-close:hover { color: #e8e8ef; }
+
+/* ===================================================================
+   TEMPORAL LENS — the pinned assessment-history panel (SPEC_temporal.md §5).
+   A READING surface, not a control strip: 0.92 opacity like .tip / #banner /
+   #about-menu, and pointer-events restored (.panel turns them off) because it
+   owns a close button.
+
+   ⚠️ NO `top` HERE — syncTemporalPos MEASURES IT (2026-08-02). This block used
+   to pin `top: 210px` on the strength of a sweep across the five views on their
+   DEFAULT metric, which found #title 176-179px tall. The real state space runs
+   140-499px: money's residential and non-residential cuts, the change lens,
+   Development and Infill all overflow it, and the panel buried the blurb in
+   those five states by up to 289px. Re-measured 2026-08-02, unchanged.
+
+   `max-height` is set from the same measurement, because below the blurb is not
+   always somewhere the panel fits — clearing it lands Development 26px into
+   #botleft and Infill 100px at 1440x900. The PANEL scrolls rather than the
+   blurb: the blurb is the content explaining the map, and #title is .panel and
+   so pointer-events:none, meaning a capped blurb could not be scrolled to.
+   =================================================================== */
+#temporal {
+  /* ⚠️ border-box so the JS max-height means the box you can SEE. Under the
+     default content-box it excluded the 21px of vertical padding + border, and
+     the panel overshot #botleft by exactly that much minus the gap — 11px, in
+     every state that capped. Width carries the same 28px horizontally, hence
+     328 rather than 300; the content box is unchanged. */
+  box-sizing: border-box;
+  display: none; left: 22px; width: 328px; pointer-events: auto;
+  background: rgba(12,12,20,0.92); border: 1px solid #2a2a3a; border-radius: 6px;
+  padding: 10px 13px 9px; font-size: 11.5px; line-height: 1.5; color: #9a9ab0;
+}
+/* Column, so #temporal-body absorbs the cap and scrolls while the name and the
+   close button stay put. */
+#temporal.open { display: flex; flex-direction: column; }
+#temporal-body { overflow-y: auto; min-height: 0; }
+/* Absolute, not a flex row with the name: the name wraps on long hood names
+   (WÎHKWÊNTÔWIN, and the two-line ones), and a flex sibling would then either
+   ride down with it or squeeze it. */
+#temporal-close {
+  position: absolute; top: 4px; right: 6px; appearance: none; cursor: pointer;
+  background: none; border: 0; padding: 2px 5px; color: #6a6a80;
+  font: 17px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+#temporal-close:hover { color: #e8e8ef; }
+#temporal-name {
+  color: #fcd278; font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
+  padding-right: 18px; /* clears the close button */
+}
+#temporal-chart { margin: 7px 0 6px; }
+#temporal-read b { color: #e8e8ef; font-weight: 600; }
+#temporal-read .muted { color: #6a6a80; }
+/* Money's revenue breakdown. A three-part row — identity swatch, category,
+   share — with the percentage right-aligned in its own column so the numbers
+   form a scannable stack instead of ragging after labels of different widths.
+   The swatch is the same colour the Uses lens paints that category, which is
+   what makes the two lenses read as one map. */
+#revmix { margin-top: 7px; }
+.revrow { display: flex; align-items: center; gap: 7px; line-height: 1.65; }
+.revrow i { flex: none; width: 9px; height: 9px; border-radius: 2px; }
+.revrow span { flex: 1; min-width: 0; }
+.revrow b { color: #e8e8ef; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Services panel: cost against revenue, grouped by basis. The group heading is
+   load-bearing, not decoration — it is what stops the eye adding two rows that
+   measure the same road metre on scales ~11x apart (see SVC_COST_BASES). */
+#svccost { margin-top: 7px; }
+.svcbasis { margin: 6px 0 2px; font-size: 10.5px; color: #9a9ab0; }
+.svcbasis:first-child { margin-top: 0; }
+.svcbasis .muted { color: #6a6a80; }
+.svcrow { display: flex; align-items: center; gap: 7px; line-height: 1.9; }
+.svcrow span { flex: none; width: 82px; white-space: nowrap; }
+.svcrow i { flex: 1; height: 7px; border-radius: 2px; background: #2a2a3a; overflow: hidden; }
+.svcrow i b { display: block; height: 100%; border-radius: 2px; }
+.svcrow em { flex: none; width: 40px; text-align: right; font-style: normal;
+             color: #e8e8ef; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Over 100% the bar has run out of room to say so. */
+.svcrow em.over { color: #fcd278; }
+#temporal-note, #temporal-hint { margin: 7px 0 0; font-size: 10.5px; color: #6a6a80; }
+/* Panel mode is ON but nothing is pinned: the panel is a prompt, not a read-out.
+   The close button hides too — there is nothing to close, and an x that does
+   nothing is worse than no x. */
+#temporal-hint { display: none; }
+/* No top margin in the empty state: that 7px separates the note from the chart
+   above it, and with nothing above it is just dead space in a one-sentence box. */
+#temporal.empty #temporal-hint { display: block; margin-top: 0; }
+#temporal.empty #temporal-chart,
+#temporal.empty #temporal-read,
+#temporal.empty #temporal-note,
+#temporal.empty #temporal-close { display: none; }
+
+/* The touch-only peek card (see its markup in index.html). Bottom-anchored in
+   the same slot the panel itself takes on a phone, so committing does not move
+   the eye — the card is replaced in place by what it was previewing. Capped in
+   width so it stays a card on a tablet instead of stretching edge to edge. */
+#peek {
+  display: none; pointer-events: auto; left: 8px; right: 8px; bottom: 8px;
+  max-width: 420px; z-index: 4; text-align: left; cursor: pointer;
+  appearance: none; background: rgba(10,10,16,0.985);
+  border: 1px solid #2a2a3a; border-radius: 6px; padding: 11px 13px;
+  font-family: inherit; font-size: 11.5px; line-height: 1.5; color: #9a9ab0;
+}
+#peek-name {
+  display: block; color: #fcd278; font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.2px;
+}
+#peek-read { display: block; color: #e8e8ef; margin-top: 2px; }
+/* Matches `.tip .muted`, NOT the dimmer chrome muted. The card now carries a
+   lens's full readout, most of which is muted rows — at #6a6a80 that is most of
+   the card's content sitting at the contrast floor, on the one device likely to
+   be read in daylight. */
+#peek-read .muted { color: #b8b8c8; }
+#peek-go { display: block; margin-top: 5px; font-size: 10.5px; color: #6a6a80; }
+
+/* ===================================================================
+   TOUCH SEAM — keyed on (hover: none), NOT on width. This is the second
+   of the two seams in this file and they answer different questions:
+   the ≤640px block below is about how much SCREEN there is, this one is
+   about what is POINTING at it. A finger needs a 44px target on an
+   800px tablet, and a mouse does not need one in a 400px-wide desktop
+   window, so width is the wrong test for both rules here.
+   =================================================================== */
+@media (hover: none) {
+  #peek.open { display: block; }
+  /* 20x21 is comfortable for a cursor and less than half the 44px minimum for
+     a finger (Apple HIG; Material asks 48). Doubling it clears the standard —
+     and the panel is opened by a deliberate gesture now, so its dismissal has
+     to be at least as easy as its opening. */
+  #temporal-close { top: 0; right: 0; padding: 10px 15px; font-size: 24px; }
+  #temporal-name { padding-right: 46px; } /* clears the enlarged close button */
+}
+
+/* ===================================================================
+   MOBILE CHROME SEAM (docs/MOBILE_USABILITY.md §3). Everything ABOVE is
+   the untouched desktop baseline; every rule below fires only ≤640px, so
+   it cannot affect desktop. Move 1: collapse the title blurb + stop the
+   left-edge clip of the right-anchored control pods.
+   =================================================================== */
+@media (max-width: 640px) {
+  /* Budget panel, phone form: a BOTTOM SHEET, the same answer #temporal
+     reached and for the same reason — its desktop home (the left column under
+     the title) is where #controls lives at this seam, so keeping it there would
+     bury #views.
+     ⚠️ The mill-rates rule — "ask whether a thing needs to be its own surface
+     before asking where to put it" (DECISIONS.md 2026-08-01) — was applied and
+     comes out the OTHER WAY here. Four mill rates fold into the blurb card; 43
+     ranked branches plus a note cannot, and folding them would bury the blurb
+     they were folded into. This is a readout, not a control, so the bottom-sheet
+     refusal of 2026-08-04 does not reach it: that one refused moving the
+     CONTROLS into a sheet.
+     Covering the legend and compass while open is acceptable for the reason
+     #temporal states: it is opened by a deliberate tap and closed by one.
+     z-index 4 = above #title.expanded (3), below the open Sources pod (5). */
+  #budget {
+    top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; z-index: 4;
+    /* Near-opaque, NOT the desktop 0.92. As a sheet this sits over the legend
+       and both bottom-right pods, and at 0.92 their labels read straight
+       through its rows — the #temporal lesson, which is the #about-menu lesson
+       one step further: 0.92 is enough over the map, not over other chrome. */
+    background: rgba(10,10,16,0.985);
+    /* The desktop cap is an arithmetic clearance for #botleft, which a sheet
+       anchored to the bottom does not need and must not inherit. Half the
+       viewport keeps the map — the thing being annotated — visible above it. */
+    max-height: 52vh;
+  }
+  /* Phone only: see the markup comment. Absolute inside the sheet, and the
+     header reserves room for it rather than flowing under it. */
+  #budget-close { display: block; }
+  #budget-head { padding-right: 42px; }
+
+  /* Title: show only the headline by default; tap it to reveal the blurb
+     as a readable card (the blurb is the top-third space hog). The tap is
+     wired in JS but only reachable here — .panel is pointer-events:none on
+     desktop, so the handler is inert there and the blurb stays always-on. */
+  #title { max-width: calc(100vw - 44px); pointer-events: auto; cursor: pointer; }
+  #title h1 { font-size: 16px; }
+  /* 22px ≈ √3 × 13px — ~3× glyph area, matching the #opt-caret bump.
+     line-height:0 so the taller glyph does not grow the h1's line box
+     (#title's height feeds chromeBoxes() and the label cull). */
+  #title h1::after { content: " \25BE"; color: #7a7a90; font-weight: 400; font-size: 22px; line-height: 0; } /* ▾ expand affordance */
+  #title.expanded h1::after { content: " \25B4"; } /* ▴ when open */
+  #title p { display: none; margin-top: 6px; }
+  #title.expanded {
+    z-index: 3; background: rgba(12,12,20,0.92);
+    border: 1px solid #2a2a3a; border-radius: 6px; padding: 8px 12px;
+  }
+  #title.expanded p { display: block; }
+
+  /* Drop the control column below the now one-line title, and bound it to
+     the viewport (left+right) so the right-anchored pods can't grow off the
+     left edge. The metric + view rows wrap instead of overflowing.
+     (coloradj's long state caption used to be dropped here too — it's now
+     gone from every breakpoint, folded into the button label.) */
+  #controls { top: 58px; left: 8px; right: 8px; align-items: flex-end; }
+  #controls > div { max-width: 100%; }
+  /* Wrap the ROWS, not #toggle itself — #toggle is a column since the
+     two-level regroup, so wrapping it would stack the rows sideways. */
+  #metric-row, #revcut, #moneymode, #views { flex-wrap: wrap; justify-content: flex-end; }
+  /* Desktop grows #views to 14px/9px-18px as the primary control; a phone
+     can't spend that much width — at 14px the four public views no longer fit
+     one 390px row. Scale back to just above the old size (still the largest
+     thing in the stack) so the row holds without wrapping. */
+  #views button { font-size: 12.5px; padding: 7px 11px; }
+  /* The Options panel stacks its two groups vertically on a phone (presentation
+     above the detail/denominator sections). It defaults folded on mobile (set
+     in JS) so the map is clear until the user opens it. */
+  #opt-body { flex-direction: column; gap: 8px; }
+  #opt-fold { font-size: 12px; }
+  /* Sources pod: the popover is a fixed 310px on desktop, which overflows a
+     390px screen once the 22px right anchor is counted. Bound it to the
+     viewport instead. The button label keeps the full credit — it fits at
+     this size, and shortening it would be shortening the attribution. */
+  #about-menu { width: calc(100vw - 44px); max-width: 310px; }
+  /* Keep the bottom-left cluster out of the bottom-right column. #legend's
+     width is set by its widest line ("Set aside — natural / undeveloped
+     land", ~282px), which at 390px runs clear under the Data & Methods and
+     Display pods — they were sitting ON the legend text. Bounding the
+     wrapper lets that line wrap to two rows instead; the gradient bar and
+     its scale are a fixed 200px, so they are unaffected. 175px reserves the
+     right column plus both gutters. */
+  #botleft { max-width: calc(100vw - 175px); }
+  /* The history panel becomes a bottom sheet. Its desktop home (under the
+     title) is where the control column lives on a phone, so keeping it there
+     would bury #views. It covers the legend and the compass while open, which
+     is acceptable in a way covering a control is not: the panel is opened by a
+     deliberate tap and closed by one, so nothing is hidden from someone who
+     didn't ask for it. z-index 4 sits above #title.expanded (3) and below the
+     open Sources pod (5). */
+  /* Near-opaque, unlike the 0.92 it uses on desktop. As a bottom sheet it sits
+     over the legend and BOTH bottom-right pods, and at 0.92 their labels
+     ("Data & Methods", "$50k+", the attribution) read straight through this
+     panel's own text. Same lesson as #about-menu, one step further: 0.92 is
+     enough over the map, not over other chrome. */
+  #temporal {
+    top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; z-index: 4;
+    background: rgba(10,10,16,0.985);
+  }
+
+  /* Mill rates, phone form: PART OF THE BLURB, not a pod of its own (Peter,
+     2026-08-01: "i don't like the independent mill rates panel. folding it into
+     the tax revenue blurb is fine"). JS re-parents #millrates into #title at
+     this seam, so the rates open and close with the description card and add
+     nothing to the default render. Same tap, same card, one surface.
+
+     That is why there is no background here: inside the card there already is
+     one. The standalone form needed its own, because a phone's map fills the
+     screen and the pod landed on the downtown prisms where 10.5px muted text is
+     unreadable — a problem the blurb never has. It also removes the anchor
+     question entirely: nothing has to clear #controls if nothing floats.
+
+     STACKED rather than the desktop one-liner because the phone has a third of
+     the width: "Res. 7.6254 · Other res. 8.3116 · Non-res. 24.2229" wraps at
+     360px, and a wrapped rate list breaks in the wrong places — between a class
+     and its number. One rate per row also gives the muted/lit contrast a whole
+     line to read on, which is the only cue for which rate the cut is billed at. */
+  #mill-rows span { display: block; }
+  #mill-rows span + span::before { content: none; }
+  /* Collapsed, the rates hide with the blurb — same rule #title p follows, and
+     it must out-specify `body.mills #millrates { display: block }`. */
+  #title:not(.expanded) #millrates { display: none; }
+  /* Static positioning has to be forced (.panel sets position:absolute). The
+     rule above the rates keeps them off the blurb's last line. */
+  #title #millrates {
+    position: static; width: auto;
+    margin-top: 8px; padding: 7px 0 0; border-top: 1px solid #2a2a3a;
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "data_year": 2026,
+  "rate_year": 2026,
+  "zoning_year": 2024,
+  "generated": "2026-08-25",
+  "last_checked": "2026-08-25",
+  "banner": null,
+  "municipal_rates": {
+    "unit": "per $1,000 assessed",
+    "classes": [
+      {
+        "name": "Residential",
+        "rate": 7.7419
+      },
+      {
+        "name": "Other Residential",
+        "rate": 8.2064
+      },
+      {
+        "name": "Non Residential",
+        "rate": 25.2216
+      }
+    ],
+    "assumed": [
+      "Farmland"
+    ]
+  },
+  "budget_context": {
+    "total": 3845555000,
+    "year": 2025,
+    "basis": "operating",
+    "categories": [
+      {
+        "key": "transit",
+        "label": "Transit (incl. DATS)",
+        "value": 468571000,
+        "derived": false
+      },
+      {
+        "key": "roads",
+        "label": "Roads",
+        "value": 102521000,
+        "derived": false
+      },
+      {
+        "key": "active_transport",
+        "label": "Bike lanes & pathways",
+        "value": 30420000,
+        "derived": false
+      },
+      {
+        "key": "sidewalks",
+        "label": "Sidewalks",
+        "value": 5900000,
+        "derived": false
+      }
+    ]
+  },
+  "_geojson_sha256": "f39f903a942e24b33f44806e1e644cb3dfa39c606a40874537a4dbab4b4dd4cd"
+}
