@@ -88,8 +88,8 @@ const [url] = process.argv.slice(2);
   await click('#transport-denom button[data-transport-denom="area"]');
   await page.waitForTimeout(1000);
   check('hides Money/Services/Prism controls', !roads.moneyPodShown && !roads.servicesShown && !roads.prismRowShown);
-  check('offers Road km, Bike-route km, and Parking stalls toggles',
-    roads.visibleTransport.join('|') === 'Road km|Bike-route km|Parking stalls',
+  check('offers Road km, Bike-route km, and City-managed stalls toggles',
+    roads.visibleTransport.join('|') === 'Road km|Bike-route km|City-managed stalls',
     roads.visibleTransport.join('|'));
   check('only Road km is active on entry', roads.activeTransport.join('|') === 'roads', roads.activeTransport.join('|'));
   check('road title names road kilometres per km²', /Road Kilometres per km²/i.test(roads.title), roads.title);

@@ -79,14 +79,24 @@ def set_default_build(html: str, mode: str) -> str:
     return html2
 
 
-def css_token(css: Path) -> str:
-    """Version token for the stylesheet link: 8 hex of its content hash.
+def asset_token(src: Path) -> str:
+    """Version token for cache-sensitive assets: CSS plus shipped data files.
 
     Content hash rather than the commit sha deliberately — a sha changes on every
-    deploy, including ones that never touched the CSS, so it would discard a
-    working browser cache for nothing. It also needs no git at build time.
+    deploy, including ones that never touched served assets, so it would discard a
+    working browser cache for nothing. Include ``web/data`` because the app gates
+    controls by data columns; after a data refresh or new metric, fresh HTML must
+    not pair with a stale cached GeoJSON.
     """
-    return hashlib.sha256(css.read_bytes()).hexdigest()[:8]
+    h = hashlib.sha256()
+    for path in [src / "styles.css", *sorted((src / "data").glob("**/*"))]:
+        if not path.is_file():
+            continue
+        h.update(str(path.relative_to(src)).encode("utf-8"))
+        h.update(b"\0")
+        h.update(path.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()[:8]
 
 
 def cache_bust(html: str, token: str) -> str:
@@ -126,9 +136,9 @@ def build(src: Path, out: Path) -> None:
     if out.exists():
         shutil.rmtree(out)
 
-    # Both builds get the SAME token — /full/ resolves styles.css through its
-    # <base href="../" />, so it reads the root's copy of the very file hashed.
-    token = css_token(src / "styles.css")
+    # Both builds get the SAME token — /full/ resolves styles.css and data through
+    # <base href="../" />, so it reads the root's copy of the files hashed.
+    token = asset_token(src)
 
     # Root = PUBLIC: copy the whole tree, then flip index.html's default.
     shutil.copytree(src, out)
