@@ -66,9 +66,27 @@ const [url] = process.argv.slice(2);
   check('defaults to road length density', roads.metric === 'roads', roads.metric);
   check('shows the Transportation controls', roads.panelShown && roads.transportShown);
   check('shows per-person denominator only when supported by shipped Census + total-length fields',
-    roads.transportDenomShown && roads.visibleTransportDenom.join('|') === 'Per km²|Per person',
+    roads.transportDenomShown && roads.visibleTransportDenom.join('|') === 'Absolute|Per km²|Per person',
     roads.visibleTransportDenom.join('|'));
   check('defaults Transportation denominator to per km²', roads.activeTransportDenom.join('|') === 'area', roads.activeTransportDenom.join('|'));
+
+  await click('#transport-denom button[data-transport-denom="absolute"]');
+  await page.waitForTimeout(1000);
+  const roadsAbsolute = await chrome();
+  check('switches road Transportation denominator to absolute kilometres',
+    /Road Kilometres$/i.test(roadsAbsolute.title) && roadsAbsolute.activeTransportDenom.join('|') === 'absolute',
+    `${roadsAbsolute.title} / ${roadsAbsolute.activeTransportDenom.join('|')}`);
+  const roadAbsMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('road absolute tooltip uses total km and normalization caveat',
+    /road km/.test(roadAbsMath.tooltip) && /absolute neighbourhood total/i.test(roadAbsMath.tooltip) && !/km²|1,000 residents|\$|acre/.test(roadAbsMath.primary),
+    roadAbsMath.tooltip);
+  await click('#transport-denom button[data-transport-denom="area"]');
+  await page.waitForTimeout(1000);
   check('hides Money/Services/Prism controls', !roads.moneyPodShown && !roads.servicesShown && !roads.prismRowShown);
   check('offers Road km, Bike-route km, and Parking stalls toggles',
     roads.visibleTransport.join('|') === 'Road km|Bike-route km|Parking stalls',
@@ -163,6 +181,22 @@ const [url] = process.argv.slice(2);
   check('bike panel-mode primary row uses km/km², not money units',
     /dedicated bike-route km \/ km²/.test(bikeMath.primary) && !/\$|acre/.test(bikeMath.primary), bikeMath.primary);
 
+  await click('#transport-denom button[data-transport-denom="absolute"]');
+  await page.waitForTimeout(1000);
+  const bikeAbsolute = await chrome();
+  check('switches bike Transportation denominator to absolute kilometres',
+    /Dedicated Bike-Route Kilometres$/i.test(bikeAbsolute.title) && bikeAbsolute.activeTransportDenom.join('|') === 'absolute',
+    `${bikeAbsolute.title} / ${bikeAbsolute.activeTransportDenom.join('|')}`);
+  const bikeAbsMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties[mode.col] > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('bike absolute tooltip uses total km and normalization caveat',
+    /dedicated bike-route km/.test(bikeAbsMath.tooltip) && /absolute neighbourhood total/i.test(bikeAbsMath.tooltip) && !/km²|1,000 residents|\$|acre/.test(bikeAbsMath.primary),
+    bikeAbsMath.tooltip);
+
   await click('#transport-denom button[data-transport-denom="person"]');
   await page.waitForTimeout(1000);
   const bikePerson = await chrome();
@@ -222,6 +256,22 @@ const [url] = process.argv.slice(2);
   check('parking facility dot tooltip preserves rate/use rows and counted-once note',
     /stalls/.test(parkingMath.dotTip) && /public parking supply/i.test(parkingMath.dotTip) && /rate\/use rows preserved; stalls counted once/i.test(parkingMath.dotTip),
     parkingMath.dotTip);
+
+  await click('#transport-denom button[data-transport-denom="absolute"]');
+  await page.waitForTimeout(1000);
+  const parkingAbsolute = await chrome();
+  check('switches parking Transportation denominator to absolute stalls',
+    /City-Managed Parking Stalls$/i.test(parkingAbsolute.title) && parkingAbsolute.activeTransportDenom.join('|') === 'absolute',
+    `${parkingAbsolute.title} / ${parkingAbsolute.activeTransportDenom.join('|')}`);
+  const parkingAbsMath = await page.evaluate(() => {
+    const mode = transportMode();
+    const kept = state.data.features.filter(f => !f.properties.is_set_aside && f.properties[mode.col] != null);
+    const mid = kept.find(f => f.properties.parking_stalls_total > 0) || kept[0];
+    return { tooltip: tooltipFor({ object: mid }).html, primary: primaryRow(mid.properties) };
+  });
+  check('parking absolute tooltip uses total stalls and normalization caveat',
+    /City-managed parking stalls/.test(parkingAbsMath.tooltip) && /absolute neighbourhood total/i.test(parkingAbsMath.tooltip) && !/km²|1,000 residents|\$|acre/.test(parkingAbsMath.primary),
+    parkingAbsMath.tooltip);
 
   await click('#transport-denom button[data-transport-denom="person"]');
   await page.waitForTimeout(1000);

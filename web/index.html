@@ -270,6 +270,7 @@
     </div>
     <span class="hd" id="transport-denom-hd">Denominator</span>
     <div id="transport-denom">
+      <button data-transport-denom="absolute" title="Show absolute neighbourhood supply — road/bike kilometres or City-managed parking stalls.">Absolute</button>
       <button data-transport-denom="area" class="active" title="Show supply density per square kilometre — length for roads/bike, stalls for City-managed parking.">Per km²</button>
       <button data-transport-denom="person" title="Show supply per 1,000 residents using total road/bike length or parking stalls and 2021 Census population. Hidden until those fields are present in the neighbourhood file.">Per person</button>
     </div>
@@ -879,12 +880,21 @@
         personCol: "road_km_per_1000_people",
         areaScale: M_PER_ACRE_TO_KM_PER_KM2,
         label: "Road km",
+        absoluteTitle: "Edmonton: Road Kilometres",
         areaTitle: "Edmonton: Road Kilometres per km²",
         personTitle: "Edmonton: Road Kilometres per 1,000 Residents",
+        absoluteLegend: "Road kilometres",
         areaLegend: "Road kilometres per km²",
         personLegend: "Road kilometres per 1,000 residents (2021 Census)",
         maxDp: 1,
         transform: null,
+        absoluteBlurb: "Each neighbourhood is coloured by total collector + local road " +
+               "kilometres within its boundary. This is centreline road length, not " +
+               "vehicle lane-kilometres: the source data does not include lane " +
+               "counts. Arterials are shown as neutral context, matching the " +
+               "Services view, because they are shared citywide infrastructure. " +
+               "Colour is linear. Grey = set-aside natural/undeveloped land or " +
+               "no measured collector/local road length.",
         areaBlurb: "Each neighbourhood is coloured by collector + local road length " +
                "density, expressed as road kilometres per square kilometre. " +
                "This is centreline road length, not vehicle lane-kilometres: " +
@@ -898,6 +908,7 @@
                "Profiles Tableau workbook. This is centreline road length, not " +
                "vehicle lane-kilometres. Colour is linear. Grey = set-aside " +
                "natural/undeveloped land or missing/zero population.",
+        absoluteFmt: v => (v / 1000).toFixed(v < 10000 ? 1 : 0) + " road km",
         areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " road km / km²",
         personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " road km / 1,000 residents",
@@ -908,12 +919,23 @@
         personCol: "bike_km_per_1000_people",
         areaScale: M_PER_ACRE_TO_KM_PER_KM2,
         label: "Bike-route km",
+        absoluteTitle: "Edmonton: Dedicated Bike-Route Kilometres",
         areaTitle: "Edmonton: Dedicated Bike-Route Kilometres per km²",
         personTitle: "Edmonton: Dedicated Bike-Route Kilometres per 1,000 Residents",
+        absoluteLegend: "Dedicated bike-route kilometres (sqrt colour)",
         areaLegend: "Dedicated bike-route kilometres per km² (sqrt colour)",
         personLegend: "Dedicated bike-route kilometres per 1,000 residents (sqrt colour)",
         maxDp: 1,
         transform: "sqrt",
+        absoluteBlurb: "Each neighbourhood is coloured by total dedicated cycling-" +
+               "infrastructure route kilometres within its boundary: protected, " +
+               "painted and contra-flow bike lanes, local street bikeways, and " +
+               "off-road shared pathways and trails. This is route length, not a " +
+               "lane-counted measure. Streets merely signed as bike routes are " +
+               "excluded upstream, as are walkways and routes marked coming soon. " +
+               "Lines trace the dedicated bike-route network. Colour is square-root " +
+               "scaled. Grey = set-aside natural/undeveloped land or no dedicated " +
+               "bike-route length.",
         areaBlurb: "Each neighbourhood is coloured by dedicated cycling-infrastructure " +
                "length density, expressed as route kilometres per square kilometre: " +
                "protected, painted and contra-flow bike lanes, local street " +
@@ -928,6 +950,7 @@
                "Profiles Tableau workbook. This is route length, not a lane-counted " +
                "measure. Colour is square-root scaled. Grey = set-aside natural/" +
                "undeveloped land or missing/zero population.",
+        absoluteFmt: v => (v / 1000).toFixed(v < 10000 ? 1 : 0) + " dedicated bike-route km",
         areaFmt: v => (v * M_PER_ACRE_TO_KM_PER_KM2).toFixed(v < 4 ? 2 : 1) +
                   " dedicated bike-route km / km²",
         personFmt: v => v.toFixed(v < 1 ? 2 : 1) + " dedicated bike-route km / 1,000 residents",
@@ -938,12 +961,22 @@
         personCol: "parking_stalls_per_1000_people",
         areaScale: ACRE_TO_KM2,
         label: "Parking stalls",
+        absoluteTitle: "Edmonton: City-Managed Parking Stalls",
         areaTitle: "Edmonton: City-Managed Parking Stalls per km²",
         personTitle: "Edmonton: City-Managed Parking Stalls per 1,000 Residents",
+        absoluteLegend: "City-managed public parking stalls (sqrt colour)",
         areaLegend: "City-managed public parking stalls per km² (sqrt colour)",
         personLegend: "City-managed public parking stalls per 1,000 residents (sqrt colour)",
         maxDp: 1,
         transform: "sqrt",
+        absoluteBlurb: "Each neighbourhood is coloured by total City-managed public " +
+               "parking supply: parkade and surface-lot stalls in facilities the " +
+               "City owns or leases. This is not all public parking in Edmonton, " +
+               "and it does not include private parking supply. Dots mark the " +
+               "individual facilities; duplicate rate/use rows are combined so " +
+               "stall capacity is counted once per physical facility. Colour is " +
+               "square-root scaled. Grey = set-aside natural/undeveloped land or " +
+               "no City-managed parking supply.",
         areaBlurb: "Each neighbourhood is coloured by City-managed public parking " +
                "supply, expressed as parkade and surface-lot stalls per square " +
                "kilometre. This is not all parking in Edmonton: it only includes " +
@@ -960,6 +993,7 @@
                "the individual parkades and surface lots. Colour is square-root " +
                "scaled. Grey = set-aside natural/undeveloped land, missing/zero " +
                "population, or no City-managed parking supply.",
+        absoluteFmt: v => v.toFixed(0) + " City-managed parking stalls",
         areaFmt: v => {
           const x = v * ACRE_TO_KM2;
           return x.toFixed(x < 10 ? 1 : 0) + " City-managed parking stalls / km²";
@@ -975,14 +1009,16 @@
     function transportMode() {
       const base = TRANSPORT[state.transportMetric];
       const perPerson = state.transportDenom === "person" && transportSupportsPerson(state.transportMetric);
+      const absolute = state.transportDenom === "absolute";
       return {
         ...base,
-        col: perPerson ? base.personCol : base.areaCol,
-        title: perPerson ? base.personTitle : base.areaTitle,
-        legend: perPerson ? base.personLegend : base.areaLegend,
-        blurb: perPerson ? base.personBlurb : base.areaBlurb,
-        fmt: perPerson ? base.personFmt : base.areaFmt,
+        col: perPerson ? base.personCol : (absolute ? base.totalCol : base.areaCol),
+        title: perPerson ? base.personTitle : (absolute ? base.absoluteTitle : base.areaTitle),
+        legend: perPerson ? base.personLegend : (absolute ? base.absoluteLegend : base.areaLegend),
+        blurb: perPerson ? base.personBlurb : (absolute ? base.absoluteBlurb : base.areaBlurb),
+        fmt: perPerson ? base.personFmt : (absolute ? base.absoluteFmt : base.areaFmt),
         perPerson,
+        absolute,
       };
     }
     function applyTransportDerivedFields() {
@@ -5222,6 +5258,8 @@
         }
         if (mode.perPerson)
           rows.push(`<span class="muted">population denominator: City of Edmonton Neighbourhood Profiles / 2021 Census</span>`);
+        else if (mode.absolute)
+          rows.push(`<span class="muted">absolute neighbourhood total, not normalized by land area or population</span>`);
         if (p.is_set_aside)
           rows.push(`<span class="muted">Set aside — ${esc(p.set_aside_reason)}</span>`);
         return { className: "tip", html: name + rows.join("<br/>") };
@@ -6132,7 +6170,7 @@
           document.getElementById("legend-cats").style.display = "block";
       } else if (state.view === "transportation") {
         const mode = transportMode();
-        const clamp = svcScale(mode.col).clamp * (mode.perPerson ? 1 : (mode.areaScale || 1));
+        const clamp = svcScale(mode.col).clamp * (mode.perPerson || mode.absolute ? 1 : (mode.areaScale || 1));
         document.getElementById("legend-label").textContent = mode.legend;
         document.getElementById("legend-min").textContent = "0";
         document.getElementById("legend-max").textContent = clamp.toFixed(mode.maxDp) + "+";
@@ -6344,7 +6382,7 @@
       refreshTransportChrome();
     }
     function applyTransportDenom(denom) {
-      if (denom === state.transportDenom || !["area", "person"].includes(denom)) return;
+      if (denom === state.transportDenom || !["absolute", "area", "person"].includes(denom)) return;
       if (denom === "person" && !transportSupportsPerson(state.transportMetric)) return;
       state.transportDenom = denom;
       if (state.view !== "transportation") { syncTransportControls(); return; }

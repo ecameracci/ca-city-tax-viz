@@ -2032,7 +2032,7 @@ aggregates. Joined columns include:
 
 **Source:** Edmonton Open Data dataset `eg3i-f4bj` — "2021 Federal Census: Population". This is the City of Edmonton Neighbourhood Profiles / Federal Census 2021 population source; the same population family is surfaced in the City's Tableau Public Neighbourhood Profiles workbook. That Tableau page has an interactive neighbourhood dropdown: its default selected neighbourhood is `ABBOTTSFIELD`, and other neighbourhoods can be selected in the workbook UI. The pipeline downloads the Socrata CSV (`data/raw/census_population_2021.csv`) because the static/simple Tableau crosstab CSV endpoint reflects the current/default workbook selection unless a workbook session/filter is driven interactively.
 
-**Use in this project:** denominator only. The Transportation view may show road kilometres, dedicated bike-route kilometres, or City-managed parking stalls per 1,000 residents only when the web GeoJSON carries both:
+**Use in this project:** denominator only. The Transportation view can show absolute road kilometres, dedicated bike-route kilometres, or City-managed parking stalls directly from total supply columns. It may also show those same measures per 1,000 residents only when the web GeoJSON carries both:
 
 - measured total supply (`road_m_total`, `bike_m_total`, or `parking_stalls_total`), and
 - `census_population_2021` from this source.

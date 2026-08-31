@@ -125,10 +125,10 @@ Revenue alone is half the fiscal story. Each service layer is a *supply* or
   `docs/SPEC_utilities.md` "Money-flow honesty")
 - **Transportation** — a separate view compares measured road kilometres,
   dedicated bike-route kilometres, and **City-managed public parking supply**
-  from parkades and surface lots (`tsq5-xp73`). The default denominator is land
-  area (`km / km²` for roads/bike; stalls / km² for parking). When the web
-  export includes totals and a real person denominator, the app also offers
-  per-1,000-resident readouts; that denominator is **2021 Federal Census
+  from parkades and surface lots (`tsq5-xp73`). The denominator can be absolute neighbourhood supply, land area
+  (`km / km²` for roads/bike; stalls / km² for parking), or — when the web
+  export includes totals and a real person denominator — per-1,000-resident
+  readouts; that denominator is **2021 Federal Census
   population** from the City of Edmonton Neighbourhood Profiles / Open Data
   source (`eg3i-f4bj`, also surfaced in the City's Tableau workbook). Road/bike
   length is centreline or route length, not vehicle lane-kilometres. Parking is
