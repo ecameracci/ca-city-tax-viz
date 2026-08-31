@@ -63,6 +63,7 @@ def inject_badge(html: str, mode: str) -> str:
 
 BUILD_RE = re.compile(r'const DEFAULT_BUILD = "(?:public|full)";')
 STYLES_RE = re.compile(r'href="styles\.css"')
+DATA_URL_RE = re.compile(r'"(\./data/[^"?]+\.(?:json|geojson))"')
 
 
 def set_default_build(html: str, mode: str) -> str:
@@ -89,19 +90,30 @@ def css_token(css: Path) -> str:
 
 
 def cache_bust(html: str, token: str) -> str:
-    """Stamp the stylesheet link with ?v=<token>; fail loudly if it drifted.
+    """Stamp cache-sensitive static URLs with ?v=<token>; fail on drift.
 
     ``styles.css`` split out of ``index.html`` on 2026-07-29, so a CSS-only change
     now ships in a file with its own cache lifetime and can render stale against a
-    fresh page — a deploy that looks half-shipped (RUNBOOK.md §3c). Note this only
-    covers stale CSS under fresh HTML: a browser holding index.html itself stale
-    holds this query with it.
+    fresh page — a deploy that looks half-shipped (RUNBOOK.md §3c).
+
+    Data files need the same treatment. The app self-gates controls by the columns
+    in ``neighbourhood_value_per_acre.geojson``; after adding a metric, a browser
+    with old data cached can load fresh HTML but hide the new control because the
+    old GeoJSON lacks the new columns. Query-stamping every local data URL keeps
+    code and data in lockstep for ordinary refreshes.
     """
     html2, n = STYLES_RE.subn(f'href="styles.css?v={token}"', html)
     if n != 1:
         raise SystemExit(
             f'build_site: expected exactly 1 `href="styles.css"` link in '
             f"index.html, found {n} — did the source change?"
+        )
+
+    html2, data_n = DATA_URL_RE.subn(lambda m: f'"{m.group(1)}?v={token}"', html2)
+    if data_n < 5:
+        raise SystemExit(
+            f"build_site: expected to cache-bust multiple local data URLs, "
+            f"found {data_n} — did the source change?"
         )
     return html2
 
