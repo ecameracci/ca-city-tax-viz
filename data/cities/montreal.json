@@ -2,8 +2,8 @@
   "city": "montreal",
   "name": "Montréal",
   "recommended_geography": "Quartiers sociologiques or quartiers de référence en habitation; choose one and document the grain before implementation",
-  "feasibility": "revenue-capable with Montréal-specific tax-bill semantics; not Edmonton-equivalent without careful tax-line filtering",
-  "summary": "Montréal has strong official open data for property/tax bill lines, evaluation-unit geometry, boundaries, roads, cycling, transit, and parking. A first revenue/value adapter should aggregate published municipal tax-account lines to neighbourhood geography, but must disclose that this is a first-issuance tax-bill-line model and not a clean Edmonton-style municipal levy reconstructed from an assessment roll plus simple mill rates.",
+  "feasibility": "strong spatial/service candidate; value/revenue experimental via privacy-sensitive tax-bill lines, not Edmonton-equivalent",
+  "summary": "Montréal has strong official open data for boundaries, evaluation-unit geometry, roads, cycling, transit, parking, and some population inputs. The inspected evaluation-unit dataset does not include assessed/current value, so a full Edmonton-style assessment-roll-plus-mill-rate model is not defensible from that source alone. Annual municipal tax-account line data includes taxable value and tax amount fields, but it is granular account/address-level data; any value/revenue adapter must aggregate early, disclose Montréal-specific first-issuance tax-bill semantics, and pass privacy/methodology review before being marked live.",
   "privacy": "Published role/tax files include evaluation-unit IDs, account numbers, civic addresses, street names, unit ranges, matricules, taxable values, and tax amounts. Québec role-foncier rules limit public consultation patterns; never ship raw parcel/account/address/matricule web artifacts. Aggregate to neighbourhood/borough or a privacy-safe grid before publishing.",
   "sources": {
     "boundaries": {
@@ -44,9 +44,25 @@
         "geojson_zip": "866a3dbc-8b59-48ff-866d-f2f9d3bbee9d",
         "shp_zip": "43c2cccf-a439-429b-a3c8-5d4ebce53e1b"
       },
-      "key_fields": ["ID_UEV", "MATRICULE83", "CIVIQUE_DEBUT", "CIVIQUE_FIN", "NOM_RUE", "SUITE_DEBUT", "SUITE_FIN", "CODE_UTILISATION", "LIBELLE_UTILISATION", "CATEGORIE_UEF", "SUPERFICIE_TERRAIN", "SUPERFICIE_BATIMENT", "NO_ARROND_ILE_CUM", "MUNICIPALITE", "geometry"],
+      "key_fields": [
+        "ID_UEV",
+        "MATRICULE83",
+        "CIVIQUE_DEBUT",
+        "CIVIQUE_FIN",
+        "NOM_RUE",
+        "SUITE_DEBUT",
+        "SUITE_FIN",
+        "CODE_UTILISATION",
+        "LIBELLE_UTILISATION",
+        "CATEGORIE_UEF",
+        "SUPERFICIE_TERRAIN",
+        "SUPERFICIE_BATIMENT",
+        "NO_ARROND_ILE_CUM",
+        "MUNICIPALITE",
+        "geometry"
+      ],
       "licence": "Creative Commons Attribution 4.0 International",
-      "caveat": "Contains evaluation-unit geometry and general attributes, not a complete value/tax roll. Condominiums may overlap on the same location; some modified matricules use temporary 2m x 2m geometries."
+      "caveat": "Contains evaluation-unit geometry and general attributes, not a complete value/tax roll; inspected fields do not include assessed/current property value. Condominiums may overlap on the same location; some modified matricules use temporary 2m x 2m geometries. Contains address/matricule fields that should not be shipped raw."
     },
     "tax_bill_lines": {
       "title": "Imposition annuelle de taxes municipales",
@@ -56,7 +72,25 @@
       "format": "CSV; one resource per arrondissement",
       "update_frequency": "annual",
       "coverage": "2021–2026 according to catalogue metadata checked 2026-08-31",
-      "key_fields": ["ARRONDISSEMENT", "NOM_ARRONDISSEMENT", "ANNEE_EXERCICE", "ID_CUM", "NO_COMPTE", "AD_EMPLAC_CIV1", "AD_EMPLAC_CIV2", "AD_EMPLAC_GENER", "AD_EMPLAC_RUE", "AD_EMPLAC_ORIENT", "AD_EMPLAC_SUITE1", "AD_EMPLAC_SUITE2", "CODE_DESCR_LONGUE", "DESCR_LONGUE", "VAL_IMPOSABLE", "TAUX_IMPOSI", "MONTANT_DETAIL"],
+      "key_fields": [
+        "ARRONDISSEMENT",
+        "NOM_ARRONDISSEMENT",
+        "ANNEE_EXERCICE",
+        "ID_CUM",
+        "NO_COMPTE",
+        "AD_EMPLAC_CIV1",
+        "AD_EMPLAC_CIV2",
+        "AD_EMPLAC_GENER",
+        "AD_EMPLAC_RUE",
+        "AD_EMPLAC_ORIENT",
+        "AD_EMPLAC_SUITE1",
+        "AD_EMPLAC_SUITE2",
+        "CODE_DESCR_LONGUE",
+        "DESCR_LONGUE",
+        "VAL_IMPOSABLE",
+        "TAUX_IMPOSI",
+        "MONTANT_DETAIL"
+      ],
       "licence": "Creative Commons Attribution 4.0 International",
       "caveat": "This is an extraction of each annual tax line composing the first issued tax account. Some personal fields are excluded, but address/account fields remain sensitive. The catalogue explicitly says it is not exhaustive City revenue data; later adjustments/exceptions may be absent. Use `ID_CUM` to join to evaluation units and aggregate early."
     },
@@ -69,7 +103,22 @@
       "resource_ids": {
         "csv": "58a8021d-3232-48e4-a5da-27450435e233"
       },
-      "key_fields": ["Année", "Arrondissement", "Numéro d'arrondissement", "Secteur", "Mode de financement", "Conseil", "Catégorie", "Application", "Catégorie d'immeubles", "Description des immeubles", "Valeur minimale d'application", "Valeur maximale d'application", "Taux", "Règle d'application"],
+      "key_fields": [
+        "Année",
+        "Arrondissement",
+        "Numéro d'arrondissement",
+        "Secteur",
+        "Mode de financement",
+        "Conseil",
+        "Catégorie",
+        "Application",
+        "Catégorie d'immeubles",
+        "Description des immeubles",
+        "Valeur minimale d'application",
+        "Valeur maximale d'application",
+        "Taux",
+        "Règle d'application"
+      ],
       "licence": "Creative Commons Attribution 4.0 International",
       "caveat": "Useful for rate semantics and QA, but the catalogue metadata seen during research referenced older temporal coverage; verify currentness before relying on it. Montréal taxes include general property tax, water, road, ARTM contribution, borough taxes, and sector/property-type exceptions."
     },
@@ -131,7 +180,11 @@
       "title": "Land-use proxy from CUBF/use codes plus urban-plan layers; no single current citywide parcel zoning open dataset verified",
       "url": "https://donnees.montreal.ca/dataset/unites-evaluation-fonciere",
       "format": "CSV/GeoJSON plus supplemental urban-plan layers",
-      "key_fields": ["CODE_UTILISATION", "LIBELLE_UTILISATION", "CATEGORIE_UEF"],
+      "key_fields": [
+        "CODE_UTILISATION",
+        "LIBELLE_UTILISATION",
+        "CATEGORIE_UEF"
+      ],
       "licence": "Creative Commons Attribution 4.0 International",
       "caveat": "Treat as land-use/use-classification proxy, not legal zoning. Montréal borough zoning can be more restrictive and may live in borough-specific/interactive planning systems."
     },
@@ -147,7 +200,7 @@
   },
   "repo_module_mapping": {
     "download": "Add a Montréal city adapter/config instead of extending Edmonton Socrata assumptions in scripts/download_data.py.",
-    "assessment_and_tax": "New loader should join taxes-municipales ID_CUM to unites-evaluation-fonciere geometry, filter tax line categories explicitly, and aggregate to chosen quartiers before web export.",
+    "assessment_and_tax": "Default Montréal branch should be spatial/service first. If revenue/value is added, a new loader must join taxes-municipales ID_CUM to unites-evaluation-fonciere geometry, filter tax line categories explicitly, suppress small cells, and aggregate to chosen quartiers before web export.",
     "boundaries": "New boundary loader for quartiers-sociologiques or quartiers de référence; document and test feature count/name stability.",
     "roads": "New road loader for geobase, replacing Edmonton centreline fields with Montréal field mapping.",
     "bike": "New bike loader for pistes-cyclables/REV subtype handling.",
