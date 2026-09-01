@@ -1,8 +1,8 @@
-# Edmonton Revenue Per Acre Analysis
+# Canadian City Revenue Per Acre Analysis
 
-A public fiscal analysis comparing Edmonton's property tax revenue to the cost of servicing it, by area.
+A public fiscal-analysis toolkit for comparing Canadian municipal property tax revenue, assessed value, and selected service-cost indicators by neighbourhood or local area. Edmonton is the current live reference implementation.
 
-[Edmonton Tax Visualization](https://ecameracci.github.io/ca-city-tax-viz/)
+[Live visualization](https://ecameracci.github.io/ca-city-tax-viz/)
 
 ## Multi-city status
 
@@ -53,45 +53,46 @@ These gaps are why only Edmonton is live today. A non-Edmonton city should not b
 
 ## What This Is
 
-Several published studies have examined the fiscal balance of suburban development in Edmonton. A Sustainable Prosperity report found that costs to the city will exceed revenues by **nearly $4 billion over 60 years** across just 17 planned new developments. A 2016 analysis of three new neighbourhoods (Decoteau, Riverview, Horse Hills) found they'll cost **$1.4 billion more** than they'll generate over 50 years.
+Canadian municipalities make major land-use, infrastructure, and tax decisions with uneven public visibility into how revenue and service obligations vary across the city. This project turns open municipal datasets into a neighbourhood-scale fiscal map: property tax revenue or assessed value per acre, selected service-supply and service-cost indicators, and caveats about what each city’s public data can and cannot support.
 
-No comprehensive, public **revenue-per-acre analysis** has been published for Edmonton — the kind of spatial fiscal analysis that presents this data at the neighbourhood level for residents and councillors.
+The goal is a reusable, city-adapter-based toolkit for Canadian cities. Edmonton is the first complete implementation because its open assessment roll, neighbourhood boundaries, service layers, and published rates are strong enough to support a defensible live map today. Other cities are being researched and scaffolded without pretending their data is complete.
 
-The goal: map Edmonton's property tax revenue and estimated service costs against land area, broken out by area and development pattern — downtown mixed-use and established infill areas alongside suburban greenfield expansion — and present the per-acre figures.
+For the Edmonton baseline, several published studies have already examined the fiscal balance of suburban development. A Sustainable Prosperity report found that costs to the city will exceed revenues by **nearly $4 billion over 60 years** across just 17 planned new developments. A 2016 analysis of three new neighbourhoods (Decoteau, Riverview, Horse Hills) found they'll cost **$1.4 billion more** than they'll generate over 50 years.
 
 ## Why Now
 
-- Edmonton recently raised property taxes by **6.9%**
-- Council is actively debating development costs and suburban expansion
-- Edmonton has excellent open data infrastructure (~448,000 property assessment records publicly available)
-- No comparable public analysis exists for Edmonton, despite Calgary and Ottawa having attempted versions of this work
+- Canadian cities are raising property taxes while debating infrastructure backlogs, growth costs, infill, and suburban expansion.
+- Open-data portals now publish enough boundary, assessment, transportation, zoning, and service information to make reproducible local fiscal analysis possible in some cities.
+- The data is uneven: some cities can support revenue/value analysis, while others are currently limited to spatial/service overlays unless lawful aggregate assessment data is obtained.
+- Edmonton has excellent open data infrastructure (~448,000 property assessment records publicly available), making it a practical first reference city for a broader Canadian tool.
 
 ## Methodology
 
-This project is inspired by the **revenue-per-acre** framework developed by [Urban3](https://www.urbanthree.com/) and popularized by [Strong Towns](https://www.strongtowns.org/), adapted for Edmonton's data environment. (Methodological lineage note: Urban3's denominator is parcel acres — this project's **lot-acre** mode; the **ground-acre** default is this project's own robustness-motivated addition. See `docs/FINDINGS_denominator_cardinality.md`.)
+This project is inspired by the **revenue-per-acre** framework developed by [Urban3](https://www.urbanthree.com/) and popularized by [Strong Towns](https://www.strongtowns.org/), adapted to Canadian municipal open-data environments. (Methodological lineage note: Urban3's denominator is parcel acres — this project's **lot-acre** mode; the **ground-acre** default is this project's own robustness-motivated addition. See `docs/FINDINGS_denominator_cardinality.md`.)
 
 **Core calculation:**
 ```
 Municipal levy (or assessed value) ÷ Neighbourhood area = Revenue (value) per acre
 ```
 
-with a toggleable denominator: **ground acres** (boundary area — robust to record-to-parcel cardinality issues) or **parcel/lot acres** (deduplicated titled lot area — the Urban3-analogous "developable land" view, with a low-parcel-fraction guard). The revenue numerator is the per-account municipal levy computed from assessed value × the class mill rate.
+with a toggleable denominator: **ground acres** (boundary area — robust to record-to-parcel cardinality issues) or **parcel/lot acres** (deduplicated titled lot area — the Urban3-analogous "developable land" view, with a low-parcel-fraction guard). In the Edmonton implementation, the revenue numerator is the per-account municipal levy computed from assessed value × the class mill rate; other cities must use city-specific tax semantics.
 
 The **cost side** layers service supply and modeled service cost per acre: road network supply, a bylaw-native stormwater charge model, fire-rescue service demand, and a per-connection water/sanitary model — each validated against published figures where possible (`docs/FINDINGS_utility_validation.md`). A top-level **Cost** metric summarizes the modeled roads + fire cost per acre where that data is available. Modeled figures are labeled *modeled, not billed*.
 
-A separate **Transportation** view compares measured road length density, dedicated bike-route length density, and **City-managed public parking supply** from parkades and surface lots. The mode can be absolute neighbourhood supply, `km / km²` for roads/bike and stalls per `km²` for parking, per-1,000-resident metrics when 2021 Census population ships, or **Operating cost**: modeled annual City operating cost for the selected road, bike, or parking layer. Road/bike length is centreline / route length, not vehicle lane-kilometres; parking is City-managed only, not all parking in Edmonton; and operating-cost figures are not lifecycle/full-city costs.
+In the Edmonton implementation, a separate **Transportation** view compares measured road length density, dedicated bike-route length density, and **City-managed public parking supply** from parkades and surface lots. The mode can be absolute neighbourhood supply, `km / km²` for roads/bike and stalls per `km²` for parking, per-1,000-resident metrics when 2021 Census population ships, or **Operating cost**: modeled annual City operating cost for the selected road, bike, or parking layer. Road/bike length is centreline / route length, not vehicle lane-kilometres; parking is City-managed only, not all parking in Edmonton; and operating-cost figures are not lifecycle/full-city costs.
 
-**Data sources (all open data):**
-- [Property Assessment Data](https://data.edmonton.ca/City-Administration/Property-Assessment-Data-Current-Calendar-Year-/q7d6-ambg) (~440,000 records, refreshed weekly, annual roll)
-- Neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, dedicated cycling infrastructure, City-managed public parking facilities, fire-rescue events & stations, transit schedule outputs, and property information (lot sizes) — all from the [Edmonton Open Data Portal](https://data.edmonton.ca/)
-- [2021 Federal Census: Population](https://data.edmonton.ca/d/eg3i-f4bj) (`eg3i-f4bj`) from the City of Edmonton Neighbourhood Profiles / Federal Census 2021 source, used only as a Transportation per-resident denominator
-- Published mill rates and utility tariffs (EPCOR bylaw rates, franchise fee schedules)
+**Data sources:**
+- The live Edmonton build uses open data from the [Edmonton Open Data Portal](https://data.edmonton.ca/), including [Property Assessment Data](https://data.edmonton.ca/City-Administration/Property-Assessment-Data-Current-Calendar-Year-/q7d6-ambg) (~440,000 records, refreshed weekly, annual roll), neighbourhood boundaries, Zoning Bylaw geometry, road centrelines, dedicated cycling infrastructure, City-managed public parking facilities, fire-rescue events & stations, transit schedule outputs, and property information/lot sizes.
+- The Edmonton build also uses [2021 Federal Census: Population](https://data.edmonton.ca/d/eg3i-f4bj) (`eg3i-f4bj`) from the City of Edmonton Neighbourhood Profiles / Federal Census 2021 source as a Transportation per-resident denominator, plus published mill rates and utility tariffs.
+- Future city builds use researched source manifests under `data/cities/`; each city needs an adapter that respects local assessment, tax, privacy, geography, and licensing rules.
 
 **Tooling:** Python only (pandas + geopandas + shapely; deck.gl in the browser) — no GIS desktop software. The full pipeline regenerates from open data in one command and runs weekly in CI.
 
-## The Data Challenge (resolved)
+## The Data Challenge
 
-Edmonton transferred parcel-level GIS *boundary* data to AltaLIS in November 2021 — it's no longer freely available. The project resolved this without AltaLIS, GEODE, or FOIP:
+Every Canadian city exposes a different slice of the fiscal picture: some publish parcel assessment values, some publish only spatial/service layers, and some publish tax-bill details with privacy-sensitive account/address fields. The project treats those differences as first-class adapter constraints rather than forcing every city into Edmonton's schema.
+
+For Edmonton, one major challenge was parcel geometry. Edmonton transferred parcel-level GIS *boundary* data to AltaLIS in November 2021 — it's no longer freely available. The project resolved this without AltaLIS, GEODE, or FOIP:
 
 1. **Neighbourhood-level aggregation** on the free boundary file is the primary unit — the same resolution as Ottawa's Hemson study and the Halifax cost-of-service research.
 2. **Lot areas** (not boundary geometry) turn out to be in the open [Property Information dataset](https://data.edmonton.ca/) (`dkk9-cj3x`), which — with a repeat-aware deduplication heuristic for condo/multi-unit records (`docs/FINDINGS_lot_dedupe.md`) — supports the parcel-acre denominator and a 100 m grid view at near-Urban3 detail.
@@ -108,10 +109,12 @@ Work that would genuinely need parcel *geometry* is catalogued in `docs/PARCEL_L
 
 ## Status
 
-**Live:** interactive 3D map at **https://ecameracci.github.io/ca-city-tax-viz/**
+**Live:** interactive 3D Edmonton map at **https://ecameracci.github.io/ca-city-tax-viz/**
 — municipal tax revenue, assessed value, and modeled roads + fire cost per acre
 by neighbourhood, with land-use set-aside, residential-only, Transportation,
 Services, Ratio, Uses, Development, and Glass-grid lenses.
+
+**Researched/scaffolded:** Vancouver, Calgary, Toronto, Hamilton, and Montréal are documented for future Canadian city adapters but remain disabled until real generated outputs exist and pass validation.
 
 **Data-quality reports:** **https://ecameracci.github.io/ca-city-tax-viz/notebooks/**
 — standalone, reproducible findings about defects in Edmonton's published open
@@ -162,6 +165,6 @@ See [`/research`](/research) for background findings and data source inventory.
 
 ## Contributing / Contact
 
-This is an independent civic project. If you work in urban planning, municipal finance, or GIS and want to collaborate — or if you have access to data that could help — get in touch.
+This is an independent civic project. If you work in urban planning, municipal finance, open data, or GIS in any Canadian city and want to collaborate — or if you have access to data that could help — get in touch.
 
 For code contributions, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
