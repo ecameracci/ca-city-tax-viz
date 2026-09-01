@@ -10,6 +10,47 @@ The live deployment currently ships the Edmonton dataset. A city selector scaffo
 
 The expansion is intentionally adapter-based: Calgary and Vancouver have plausible public revenue/value paths, but with local tax semantics. Montréal has strong spatial/service open data and a possible but privacy-sensitive tax-bill-line path; it is not ready for full Edmonton-style value/revenue lenses until that method is validated and aggregated safely. Toronto and Hamilton have strong spatial/service open data but no Edmonton-equivalent open assessment roll, so their revenue/value lenses must stay unavailable unless lawful aggregate assessment data is obtained.
 
+### City-by-city data gaps
+
+These gaps are why only Edmonton is live today. A non-Edmonton city should not be marked `available: true` until its adapter has generated the required browser-facing GeoJSON/JSON outputs and the relevant caveats are represented in the UI.
+
+#### Edmonton — live baseline
+
+- **Available:** neighbourhood boundaries, current assessment roll, pinned municipal mill rates, property-information lot areas, zoning, roads, bike routes, transit stops, City-managed public parking facilities, fire/service layers, 2021 population denominator, and Edmonton-specific operating/service-cost assumptions.
+- **Known gaps:** parcel boundary geometry is no longer freely available from the City, so parcel-shape analysis remains out of scope; optional feeds can be absent locally during regeneration; public data cannot fully resolve tax-exempt-property status or private parking supply.
+- **Implication:** Edmonton remains the reference implementation, but its cost rates and field assumptions must not be reused for other cities without a city-specific adapter.
+
+#### Calgary — strongest next revenue/value candidate
+
+- **Available:** open parcel assessment records with assessed values, assessment class, community code/name, land size, and geometry; community boundaries; roads, bikeways/pathways, GTFS transit, parking-zone context, land-use districts, and 2021 census-by-community data candidates.
+- **Gaps before live:** official/current tax-rate values need to be pinned from a defensible City source or bylaw and tested; loaders must map Calgary assessment classes, community geography, CRS/geometry, and land-use semantics into the shared contract; parcel-level roll/address artifacts must be stripped from web outputs.
+- **Implication:** good first implementation target, but not just a dataset swap.
+
+#### Vancouver — feasible with different tax semantics
+
+- **Available:** Local Area boundaries, property tax report with values and `tax_levy`, parcel polygons, public streets, bikeways, parking meters, zoning districts, local-area census profiles, and TransLink GTFS.
+- **Gaps before live:** `tax_levy` is an actual total property-tax notice amount, not a clean municipal-only Edmonton-style levy reconstructed from mill rates; municipal-only tax-rate reconstruction would need separate validation; Local Areas are coarser than Edmonton neighbourhoods; parcel/folio/address/legal-description fields must not be shipped raw.
+- **Implication:** viable if the UI labels Vancouver revenue as actual/total notice levy or another Vancouver-specific metric, not Edmonton-equivalent modeled municipal levy.
+
+#### Toronto — services/spatial first
+
+- **Available:** neighbourhood boundaries/profiles, centreline, cycling network, TTC/GTFS candidates, Green P/parking facilities, zoning, permits, fire stations/incidents, and population data.
+- **Gaps before live:** no open Edmonton-equivalent parcel/account assessment roll with assessed value, property class, and neighbourhood/coordinate fields was found; official assessment roll access is public-inspection/in-person and can include owner/tenant information, so scraping or republishing is not acceptable.
+- **Implication:** Toronto should start with services/spatial overlays and keep revenue/value lenses disabled unless lawful aggregate assessment/value data is obtained.
+
+#### Hamilton — services/spatial first
+
+- **Available:** planning neighbourhoods/community boundaries, street-centreline/road-segment layers, bikeways, HSR stops/service candidates, zoning/context layers, parking/context candidates, and census/population geography inputs.
+- **Gaps before live:** no open assessment roll with assessed value, class, and neighbourhood/account fields was found; available parcel/spatial layers do not provide the Edmonton-style value/revenue numerator; MPAC/Hamilton aggregate assessment inputs would need to be obtained lawfully and documented.
+- **Implication:** Hamilton should keep revenue/value lenses disabled and focus first on spatial/service layers.
+
+#### Montréal — spatial/service first; value/revenue experimental
+
+- **Available:** quartiers sociologiques or housing-reference quartiers, borough/agglomeration boundaries, evaluation-unit geometry, Géobase road centreline, cycling network, STM GTFS, municipal paid parking places/rules, CUBF land-use/use-code proxy, and census/population candidates.
+- **Gaps before live:** inspected `Unités d’évaluation foncière` fields do not include assessed/current property value; annual municipal tax-bill lines include `VAL_IMPOSABLE` and `MONTANT_DETAIL`, but they are granular account/address-level records with first-issuance and non-exhaustive-revenue caveats; current tax-rate coverage/semantics need verification; chosen neighbourhood geography and population apportionment need to be settled.
+- **Privacy rule:** do not ship raw `ID_CUM`, account numbers, civic addresses, matricules, or unit-level geometry. Aggregate early, filter tax-line categories explicitly, and suppress small cells if needed.
+- **Implication:** Montréal can be a strong spatial/service branch, but value/revenue should remain experimental until the tax-bill-line method is reviewed and safely aggregated.
+
 ## What This Is
 
 Several published studies have examined the fiscal balance of suburban development in Edmonton. A Sustainable Prosperity report found that costs to the city will exceed revenues by **nearly $4 billion over 60 years** across just 17 planned new developments. A 2016 analysis of three new neighbourhoods (Decoteau, Riverview, Horse Hills) found they'll cost **$1.4 billion more** than they'll generate over 50 years.
